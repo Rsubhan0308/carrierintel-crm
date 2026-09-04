@@ -242,17 +242,62 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
   document.getElementById('floating-timer-display').innerText = '00:00';
   document.getElementById('recorder-note-input').value = '';
 
-  // Trigger Google Voice / Phone Call Launch
+  // Trigger Phone / VoIP Launch
   const cleanPhone = (phoneNum || carrier.phone || '').replace(/\D/g, '');
   if (cleanPhone) {
     window.open(`tel:${cleanPhone}`, '_self');
   }
 
-  // Request Browser Microphone Stream
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    state.mediaRecorder = new MediaRecorder(stream);
+    let recorderStream;
 
+    // Capture Microphone Stream without browser echo cancellation muting recipient speaker audio
+    const micStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: true
+      }
+    });
+    state.micStream = micStream;
+
+    // Check if browser supports system/tab audio capture for softphones (Google Voice, OpenPhone, Skype, etc.)
+    if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+      try {
+        const displayStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: { echoCancellation: false, autoGainControl: false }
+        });
+
+        const sysAudioTracks = displayStream.getAudioTracks();
+        if (sysAudioTracks.length > 0) {
+          // Mix Mic Stream + System Audio Stream using AudioContext
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const destNode = audioCtx.createMediaStreamDestination();
+
+          const micSourceNode = audioCtx.createMediaStreamSource(micStream);
+          const sysSourceNode = audioCtx.createMediaStreamSource(new MediaStream(sysAudioTracks));
+
+          micSourceNode.connect(destNode);
+          sysSourceNode.connect(destNode);
+
+          recorderStream = destNode.stream;
+          state.recordingAudioCtx = audioCtx;
+          state.displayStream = displayStream;
+
+          // Stop unnecessary video screen track
+          displayStream.getVideoTracks().forEach(t => t.stop());
+        }
+      } catch (displayErr) {
+        console.log("System audio capture skipped or rejected, proceeding with un-cancelled microphone audio capture:", displayErr);
+      }
+    }
+
+    if (!recorderStream) {
+      recorderStream = micStream;
+    }
+
+    state.mediaRecorder = new MediaRecorder(recorderStream);
     state.mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) state.audioChunks.push(event.data);
     };
@@ -272,7 +317,7 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
 
     document.getElementById('call-recorder-modal').classList.add('active');
     document.getElementById('floating-call-bar').style.display = 'none';
-    showToast('🔴 Mandatory Call Audio Recording Active...', 'info');
+    showToast('🎙️ 2-Way Both-Sides Call Recording Active!', 'success');
 
   } catch (err) {
     console.error('Microphone access error:', err);
@@ -316,7 +361,7 @@ async function stopAndSaveCallRecording() {
 
         const data = await res.json();
         if (res.ok) {
-          showToast('Call audio recording saved and attached to lead!', 'success');
+          showToast('Both-sides call recording saved successfully!', 'success');
           document.getElementById('call-recorder-modal').classList.remove('active');
           document.getElementById('floating-call-bar').style.display = 'none';
 
@@ -331,8 +376,16 @@ async function stopAndSaveCallRecording() {
       }
     };
 
-    // Stop all audio tracks
-    state.mediaRecorder.stream.getTracks().forEach(track => track.stop());
+    // Clean up & stop all audio streams and context
+    if (state.micStream) {
+      state.micStream.getTracks().forEach(track => track.stop());
+    }
+    if (state.displayStream) {
+      state.displayStream.getTracks().forEach(track => track.stop());
+    }
+    if (state.recordingAudioCtx) {
+      state.recordingAudioCtx.close();
+    }
   };
 
   state.mediaRecorder.stop();
