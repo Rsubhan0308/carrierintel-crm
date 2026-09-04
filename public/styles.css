@@ -1686,3 +1686,69 @@ body {
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
 }
+
+/* Floating Call Recording Widget Bar */
+.floating-call-bar {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 10000;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(239, 68, 68, 0.6);
+  border-radius: 16px;
+  padding: 12px 20px;
+  box-shadow: 0 12px 35px rgba(239, 68, 68, 0.3), 0 0 20px rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  animation: slideUpFloating 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUpFloating {
+  from { transform: translateY(100px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.floating-rec-pulse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rec-dot-sm {
+  width: 12px;
+  height: 12px;
+  background-color: var(--accent-red);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--accent-red);
+  animation: pulseDot 1s infinite alternate;
+}
+
+.floating-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.floating-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-main);
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.floating-timer {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--accent-red);
+  font-family: monospace;
+}
+
+.floating-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

@@ -190,8 +190,36 @@ function applyRolePermissions() {
 // --- MANDATORY CALL AUDIO RECORDER SYSTEM ---
 function initCallRecorderControls() {
   const stopSaveBtn = document.getElementById('stop-save-recording-btn');
-  if (stopSaveBtn) {
-    stopSaveBtn.addEventListener('click', stopAndSaveCallRecording);
+  const floatingEndCallBtn = document.getElementById('floating-end-call-btn');
+  const minimizeBtn = document.getElementById('minimize-recorder-btn');
+  const minimizeFooterBtn = document.getElementById('minimize-recorder-footer-btn');
+  const expandBtn = document.getElementById('expand-recorder-btn');
+  const pitchBtn = document.getElementById('quick-pitch-from-call-btn');
+
+  if (stopSaveBtn) stopSaveBtn.addEventListener('click', stopAndSaveCallRecording);
+  if (floatingEndCallBtn) floatingEndCallBtn.addEventListener('click', stopAndSaveCallRecording);
+  
+  if (minimizeBtn) minimizeBtn.addEventListener('click', minimizeCallRecorderModal);
+  if (minimizeFooterBtn) minimizeFooterBtn.addEventListener('click', minimizeCallRecorderModal);
+  if (expandBtn) expandBtn.addEventListener('click', expandCallRecorderModal);
+  if (pitchBtn) pitchBtn.addEventListener('click', openPitchScriptFromCall);
+}
+
+function minimizeCallRecorderModal() {
+  document.getElementById('call-recorder-modal').classList.remove('active');
+  document.getElementById('floating-call-bar').style.display = 'flex';
+  showToast('🗕 Call recording minimized to floating widget. Browse carrier leads & details freely!', 'info');
+}
+
+function expandCallRecorderModal() {
+  document.getElementById('floating-call-bar').style.display = 'none';
+  document.getElementById('call-recorder-modal').classList.add('active');
+}
+
+function openPitchScriptFromCall() {
+  if (state.activeRecordingCarrier) {
+    minimizeCallRecorderModal();
+    openScriptModal(state.activeRecordingCarrier.id);
   }
 }
 
@@ -209,6 +237,8 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
   document.getElementById('recorder-carrier-name').innerText = carrier.companyName;
   document.getElementById('recorder-phone-num').innerText = phoneNum || carrier.phone || 'N/A';
   document.getElementById('rec-timer-display').innerText = '00:00';
+  document.getElementById('floating-carrier-name').innerText = carrier.companyName;
+  document.getElementById('floating-timer-display').innerText = '00:00';
   document.getElementById('recorder-note-input').value = '';
 
   // Trigger Google Voice / Phone Call Launch
@@ -228,16 +258,19 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
 
     state.mediaRecorder.start();
 
-    // Start Timer Display
+    // Start Timer Display (Syncs Both Main Modal and Floating Bar)
     if (state.recordingTimer) clearInterval(state.recordingTimer);
     state.recordingTimer = setInterval(() => {
       state.recordingSeconds++;
       const mins = String(Math.floor(state.recordingSeconds / 60)).padStart(2, '0');
       const secs = String(state.recordingSeconds % 60).padStart(2, '0');
-      document.getElementById('rec-timer-display').innerText = `${mins}:${secs}`;
+      const formattedTime = `${mins}:${secs}`;
+      document.getElementById('rec-timer-display').innerText = formattedTime;
+      document.getElementById('floating-timer-display').innerText = formattedTime;
     }, 1000);
 
     document.getElementById('call-recorder-modal').classList.add('active');
+    document.getElementById('floating-call-bar').style.display = 'none';
     showToast('🔴 Mandatory Call Audio Recording Active...', 'info');
 
   } catch (err) {
@@ -251,6 +284,7 @@ async function stopAndSaveCallRecording() {
   if (!state.mediaRecorder || !state.activeRecordingCarrier) return;
 
   clearInterval(state.recordingTimer);
+  document.getElementById('floating-call-bar').style.display = 'none';
   const status = document.getElementById('recorder-status-select').value;
   const noteText = document.getElementById('recorder-note-input').value.trim();
 
@@ -283,6 +317,7 @@ async function stopAndSaveCallRecording() {
         if (res.ok) {
           showToast('Call audio recording saved and attached to lead!', 'success');
           document.getElementById('call-recorder-modal').classList.remove('active');
+          document.getElementById('floating-call-bar').style.display = 'none';
 
           fetchCarriers(state.currentPage);
           fetchStats();

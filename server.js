@@ -10,6 +10,7 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
 
 // Create Recordings Directory
 const RECORDINGS_DIR = path.join(__dirname, 'public', 'recordings');
