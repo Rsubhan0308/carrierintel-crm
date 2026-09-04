@@ -1017,6 +1017,9 @@ function initModal() {
   const saveBtn = document.getElementById('modal-save-btn');
   const addNoteBtn = document.getElementById('modal-add-note-btn');
   const scriptBtn = document.getElementById('modal-script-btn');
+  const emailPitchBtn = document.getElementById('modal-email-pitch-btn');
+  const closeEmailBtn = document.getElementById('close-email-modal-btn');
+  const emailModal = document.getElementById('email-template-modal');
   const closeScriptBtn = document.getElementById('close-script-modal-btn');
   const scriptModal = document.getElementById('script-modal');
 
@@ -1026,6 +1029,10 @@ function initModal() {
   if (scriptBtn) scriptBtn.onclick = () => { if (state.activeCarrier) openScriptModal(state.activeCarrier.id); };
   if (closeScriptBtn) closeScriptBtn.onclick = () => closeScriptModal();
   if (scriptModal) scriptModal.onclick = (e) => { if (e.target === scriptModal) closeScriptModal(); };
+
+  if (emailPitchBtn) emailPitchBtn.onclick = () => { if (state.activeCarrier) openEmailPitchModal(state.activeCarrier.id); };
+  if (closeEmailBtn) closeEmailBtn.onclick = () => emailModal.classList.remove('active');
+  if (emailModal) emailModal.onclick = (e) => { if (e.target === emailModal) emailModal.classList.remove('active'); };
 
   document.querySelectorAll('.modal-tab-btn').forEach(btn => {
     btn.onclick = () => {
@@ -1041,18 +1048,28 @@ function initModal() {
     if (!state.activeCarrier) return;
     const newStatus = document.getElementById('modal-crm-status-select').value;
     const newRep = document.getElementById('modal-assigned-rep-select').value;
+    const callbackDt = document.getElementById('modal-callback-datetime').value;
+    const callbackNote = document.getElementById('modal-callback-note').value.trim();
 
     try {
+      const payload = { crmStatus: newStatus, assignedRep: newRep };
+      if (callbackDt) {
+        payload.followUpDate = callbackDt;
+        payload.followUpNote = callbackNote;
+        payload.followUpStatus = 'PENDING';
+      }
+
       const res = await fetch(`/api/carriers/${state.activeCarrier.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.sessionToken}` },
-        body: JSON.stringify({ crmStatus: newStatus, assignedRep: newRep })
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
-        showToast('Lead status updated successfully!', 'success');
+        showToast('Lead status & callback saved successfully!', 'success');
         modal.classList.remove('active');
         fetchCarriers(state.currentPage);
         fetchStats();
+        fetchReminders();
       }
     } catch (err) {}
   };
@@ -1397,3 +1414,190 @@ function showToast(message, type = 'info') {
   container.appendChild(toast);
   setTimeout(() => toast.remove(), 4000);
 }
+
+// --- 1-CLICK EMAIL PITCH TEMPLATES ---
+let activeEmailCarrier = null;
+
+function openEmailPitchModal(carrierId) {
+  let carrier = state.carriers.find(c => c.id === carrierId) || state.freshCarriers.find(c => c.id === carrierId);
+  if (!carrier && state.activeCarrier && state.activeCarrier.id === carrierId) {
+    carrier = state.activeCarrier;
+  }
+  if (!carrier) return;
+
+  activeEmailCarrier = carrier;
+  document.getElementById('email-modal-company-name').innerText = carrier.companyName;
+  document.getElementById('email-modal-address').innerText = carrier.email || 'No email address on file';
+
+  const select = document.getElementById('email-template-select');
+  select.onchange = () => populateEmailTemplate(select.value, carrier);
+  populateEmailTemplate('DRY_VAN', carrier);
+
+  document.getElementById('email-template-modal').classList.add('active');
+}
+window.openEmailPitchModal = openEmailPitchModal;
+
+function populateEmailTemplate(templateKey, carrier) {
+  const ownerName = carrier.ownerName || 'Owner / Dispatch Manager';
+  const repName = state.sessionUser ? state.sessionUser.name : 'Dispatch Sales Desk';
+  const phone = carrier.phone || '(205) 722-4524';
+
+  let subject = '';
+  let body = '';
+
+  switch (templateKey) {
+    case 'DRY_VAN':
+      subject = `High-Paying Dedicated Dry Van Lanes Available for ${carrier.companyName} (DOT #${carrier.usdot})`;
+      body = `Hi ${ownerName},\n\nI noticed ${carrier.companyName} operates ${carrier.powerUnits || 1} Dry Van unit(s) out of ${carrier.city || 'your area'}, ${carrier.state || ''}.\n\nWe currently have premium-rate dedicated freight lanes running in your region with average rates exceeding $2.75 - $3.20/mile, zero factoring delays, and quick 24-hour pay terms.\n\nWould you have 2 minutes for a quick chat today to see if our lane volume fits your current routes?\n\nBest regards,\n${repName}\nDispatch & Freight Sales Engine\nDirect Phone: ${phone}`;
+      break;
+    case 'REEFER':
+      subject = `Dedicated Temperature-Controlled Reefer Freight for ${carrier.companyName} (MC #${carrier.mcNumber || carrier.usdot})`;
+      body = `Hello ${ownerName},\n\nOur dispatch network has immediate high-paying reefer loads originating out of ${carrier.state || 'your region'} with top-tier RPM ($3.10 - $3.80/mile).\n\nWe handle all broker negotiation, detention tracking, and paperwork setup so your drivers stay moving without sitting empty.\n\nLet's discuss your preferred origin/destination lanes this week.\n\nBest regards,\n${repName}\nReefer Dispatch Operations\nDirect Phone: ${phone}`;
+      break;
+    case 'FLATBED':
+      subject = `Open Deck & Flatbed Freight Lanes Ready for ${carrier.companyName}`;
+      body = `Hi ${ownerName},\n\nWe are looking for active Flatbed / Step Deck carriers like ${carrier.companyName} to handle specialized open deck freight.\n\nWe provide 100% transparent rate confirmations, no forced dispatch, and high-RPM oversize/heavy haul options.\n\nCall or reply to this email to lock in your preferred routes for next week.\n\nBest regards,\n${repName}\nFlatbed Logistics Desk\nDirect Phone: ${phone}`;
+      break;
+    case 'OWNER_OP':
+      subject = `Max Rate Per Mile Dispatch Agreement for ${carrier.companyName} (${carrier.powerUnits || 1} Truck Fleet)`;
+      body = `Dear ${ownerName},\n\nAs an owner-operator running ${carrier.companyName}, your time should be spent driving, not negotiating with lowball brokers.\n\nOur full-service dispatch team guarantees:\n• High Average Rate Per Mile ($2.70+ RPM)\n• 24/7 Dedicated Dispatcher\n• Factoring & Setup Packet Management\n• Low 8% Flat Dispatch Fee (No contracts)\n\nReply to this email or call me directly to get onboarded in 15 minutes.\n\nBest regards,\n${repName}\nOwner-Operator Success Team\nDirect Phone: ${phone}`;
+      break;
+    case 'SETUP_PACKET':
+      subject = `Carrier Dispatch Setup Packet Request - ${carrier.companyName} (DOT #${carrier.usdot})`;
+      body = `Hi ${ownerName},\n\nFollowing up on our conversation, please send over your setup packet documents so we can complete carrier onboarding:\n\n1. Copy of MC Authority Certificate\n2. Signed W-9 Form\n3. Certificate of Insurance (COI) listing $100k Cargo / $1M Auto Liability\n4. Notice of Assignment (NOA) for Factoring (if applicable)\n\nSend documents back to this email or call us if you have any questions.\n\nBest regards,\n${repName}\nCarrier Onboarding Department\nDirect Phone: ${phone}`;
+      break;
+  }
+
+  document.getElementById('email-modal-subject').value = subject;
+  document.getElementById('email-modal-body').value = body;
+}
+
+function copyEmailTemplateBody() {
+  const bodyText = document.getElementById('email-modal-body').value;
+  navigator.clipboard.writeText(bodyText);
+  showToast('Email body text copied to clipboard!', 'success');
+}
+window.copyEmailTemplateBody = copyEmailTemplateBody;
+
+function launchDefaultMailClient() {
+  if (!activeEmailCarrier || !activeEmailCarrier.email) {
+    showToast('Carrier email is missing or not provided.', 'error');
+    return;
+  }
+  const subject = encodeURIComponent(document.getElementById('email-modal-subject').value);
+  const body = encodeURIComponent(document.getElementById('email-modal-body').value);
+  window.open(`mailto:${activeEmailCarrier.email}?subject=${subject}&body=${body}`, '_blank');
+}
+window.launchDefaultMailClient = launchDefaultMailClient;
+
+// --- SMART CALLBACK & REMINDER SYSTEM ---
+async function fetchReminders() {
+  try {
+    const res = await fetch('/api/reminders', {
+      headers: { 'Authorization': `Bearer ${state.sessionToken}` }
+    });
+    if (!res.ok) return;
+
+    const data = await res.json();
+    
+    // Update badge in sidebar
+    const badge = document.getElementById('nav-callbacks-count');
+    if (badge) {
+      if (data.dueCount > 0) {
+        badge.innerText = data.dueCount;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    document.getElementById('count-reminders-due').innerText = data.dueNowOrOverdue.length;
+    document.getElementById('count-reminders-upcoming').innerText = data.upcoming.length;
+    document.getElementById('count-reminders-completed').innerText = data.completed.length;
+
+    renderReminderCards('container-reminders-due', data.dueNowOrOverdue, true);
+    renderReminderCards('container-reminders-upcoming', data.upcoming, false);
+    renderReminderCards('container-reminders-completed', data.completed, false, true);
+
+  } catch (err) {
+    console.error('Failed to fetch reminders:', err);
+  }
+}
+window.fetchReminders = fetchReminders;
+
+function renderReminderCards(containerId, list, isOverdue = false, isCompleted = false) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!list || list.length === 0) {
+    container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 16px;">No callback reminders in this category.</p>`;
+    return;
+  }
+
+  list.forEach(c => {
+    const card = document.createElement('div');
+    card.className = `reminder-card ${isOverdue ? 'card-overdue' : ''}`;
+    const dateFormatted = new Date(c.followUpDate).toLocaleString();
+    const cleanPhone = (c.phone || '').replace(/\D/g, '');
+
+    card.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+        <span style="font-weight: 800; font-size: 0.92rem;">${c.companyName}</span>
+        <span class="badge ${isOverdue ? 'badge-hot' : (isCompleted ? 'badge-green' : 'badge-blue')}">${isOverdue ? '🚨 DUE NOW' : (isCompleted ? 'Completed' : 'Scheduled')}</span>
+      </div>
+      <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 6px;">DOT #${c.usdot} • ${c.state || ''} • ${c.powerUnits || 1} Units</div>
+      <div style="font-size: 0.8rem; color: var(--accent-orange); font-weight: 700; margin-bottom: 6px;">
+        <i class="fa-solid fa-clock"></i> ${dateFormatted}
+      </div>
+      ${c.followUpNote ? `<div style="font-size: 0.8rem; background: rgba(0,0,0,0.3); padding: 6px 10px; border-radius: 6px; margin-bottom: 10px; color: var(--text-main);">${c.followUpNote}</div>` : ''}
+      <div style="display: flex; gap: 8px; justify-content: space-between;">
+        ${cleanPhone ? `<button class="btn btn-xs btn-primary" onclick="startMandatoryCallRecorder('${c.id}', '${cleanPhone}')"><i class="fa-solid fa-phone"></i> Call Now</button>` : ''}
+        ${!isCompleted ? `<button class="btn btn-xs btn-outline-success" onclick="markCallbackCompleted('${c.id}')"><i class="fa-solid fa-check"></i> Complete</button>` : ''}
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function setQuickCallbackPreset(presetKey) {
+  const dtInput = document.getElementById('modal-callback-datetime');
+  const now = new Date();
+
+  if (presetKey === 'tomorrow') {
+    now.setDate(now.getDate() + 1);
+    now.setHours(10, 0, 0, 0);
+  } else if (presetKey === 'in3days') {
+    now.setDate(now.getDate() + 3);
+    now.setHours(10, 0, 0, 0);
+  } else if (presetKey === 'nextmonday') {
+    const day = now.getDay();
+    const diff = now.getDate() + (8 - day);
+    now.setDate(diff);
+    now.setHours(10, 0, 0, 0);
+  }
+
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const date = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const mins = String(now.getMinutes()).padStart(2, '0');
+
+  dtInput.value = `${year}-${month}-${date}T${hours}:${mins}`;
+}
+window.setQuickCallbackPreset = setQuickCallbackPreset;
+
+async function markCallbackCompleted(carrierId) {
+  try {
+    const res = await fetch(`/api/carriers/${carrierId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.sessionToken}` },
+      body: JSON.stringify({ followUpStatus: 'COMPLETED' })
+    });
+    if (res.ok) {
+      showToast('Callback marked as completed!', 'success');
+      fetchReminders();
+    }
+  } catch (err) {}
+}
+window.markCallbackCompleted = markCallbackCompleted;

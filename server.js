@@ -591,11 +591,27 @@ app.patch('/api/carriers/:id', (req, res) => {
     return res.status(403).json({ error: 'Forbidden: You can only edit leads assigned to your account.' });
   }
 
-  const { crmStatus, assignedRep, noteText, starRating } = req.body;
+  const { crmStatus, assignedRep, noteText, starRating, followUpDate, followUpNote, followUpStatus } = req.body;
 
   if (crmStatus) carrier.crmStatus = crmStatus;
   if (assignedRep && sessionUser.role === 'ADMIN') carrier.assignedRep = assignedRep;
   if (starRating !== undefined) carrier.starRating = starRating;
+  if (followUpDate !== undefined) carrier.followUpDate = followUpDate;
+  if (followUpNote !== undefined) carrier.followUpNote = followUpNote;
+  if (followUpStatus !== undefined) carrier.followUpStatus = followUpStatus;
+
+  if (followUpDate) {
+    if (!carrier.notes) carrier.notes = [];
+    const formattedDate = new Date(followUpDate).toLocaleString();
+    carrier.notes.unshift({
+      id: `NOTE-${Date.now()}`,
+      date: new Date().toISOString().split('T')[0],
+      time: new Date().toLocaleTimeString(),
+      author: sessionUser.name,
+      text: `📅 Scheduled Callback / Follow-Up for: ${formattedDate}${followUpNote ? ` - "${followUpNote}"` : ''}`
+    });
+    logActivity('CALLBACK_SCHEDULED', sessionUser, { carrierId: carrier.id, companyName: carrier.companyName, status: crmStatus || carrier.crmStatus, noteText: `Scheduled callback for ${formattedDate}` });
+  }
 
   if (noteText) {
     if (!carrier.notes) carrier.notes = [];
@@ -612,6 +628,32 @@ app.patch('/api/carriers/:id', (req, res) => {
   carriersDatabase[index] = carrier;
   saveDatabase();
   res.json({ message: 'Carrier updated successfully', carrier });
+});
+
+// GET SCHEDULED CALLBACK REMINDERS FOR SALES REPS & ADMINS
+app.get('/api/reminders', (req, res) => {
+  const sessionUser = requireAuth(req, res);
+  if (!sessionUser) return;
+
+  let dataset = [...carriersDatabase];
+  if (sessionUser.role === 'SALES_REP') {
+    dataset = dataset.filter(c => c.assignedRep === sessionUser.name);
+  }
+
+  const scheduled = dataset.filter(c => c.followUpDate);
+  const now = new Date();
+
+  const dueNowOrOverdue = scheduled.filter(c => c.followUpStatus !== 'COMPLETED' && new Date(c.followUpDate) <= now);
+  const upcoming = scheduled.filter(c => c.followUpStatus !== 'COMPLETED' && new Date(c.followUpDate) > now);
+  const completed = scheduled.filter(c => c.followUpStatus === 'COMPLETED');
+
+  res.json({
+    totalScheduled: scheduled.length,
+    dueCount: dueNowOrOverdue.length,
+    dueNowOrOverdue,
+    upcoming,
+    completed
+  });
 });
 
 app.post('/api/carriers/bulk-assign', (req, res) => {
