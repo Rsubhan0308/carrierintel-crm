@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initBulkAssignRep();
   initCreateUserForm();
   initCallRecorderControls();
+  initExportButton();
 
   // Initial Hash check
   handleHashChange();
@@ -700,7 +701,7 @@ function renderCarrierTable() {
       const id = e.target.getAttribute('data-id');
       if (e.target.checked) state.selectedCarrierIds.add(id);
       else state.selectedCarrierIds.delete(id);
-      document.getElementById('selected-count').innerText = state.selectedCarrierIds.size;
+      updateSelectedCountDisplay();
     });
   });
 
@@ -711,6 +712,8 @@ function renderCarrierTable() {
   document.querySelectorAll('.open-script-btn').forEach(btn => {
     btn.addEventListener('click', () => openScriptModal(btn.getAttribute('data-id')));
   });
+
+  updateSelectedCountDisplay();
 }
 
 function renderPagination(current, total) {
@@ -789,7 +792,7 @@ function initFilterControls() {
       if (checked) state.selectedCarrierIds.add(id);
       else state.selectedCarrierIds.delete(id);
     });
-    document.getElementById('selected-count').innerText = state.selectedCarrierIds.size;
+    updateSelectedCountDisplay();
   });
 }
 
@@ -1213,7 +1216,66 @@ window.closeScriptModal = closeScriptModal;
 window.copyScriptText = copyScriptText;
 window.copyEntireScript = copyEntireScript;
 
-// CSV EXPORT
+// CSV EXPORT SYSTEM
+function updateSelectedCountDisplay() {
+  const countEl = document.getElementById('selected-count');
+  const exportBtn = document.getElementById('export-selected-btn');
+  if (!countEl || !exportBtn) return;
+
+  if (state.selectedCarrierIds.size > 0) {
+    countEl.innerText = state.selectedCarrierIds.size;
+    exportBtn.title = `Export ${state.selectedCarrierIds.size} Selected Lead(s) to CSV`;
+  } else {
+    countEl.innerText = 'All';
+    exportBtn.title = `Export All Available Leads to CSV`;
+  }
+}
+window.updateSelectedCountDisplay = updateSelectedCountDisplay;
+
+function initExportButton() {
+  const exportBtn = document.getElementById('export-selected-btn');
+  if (!exportBtn) return;
+
+  exportBtn.addEventListener('click', async () => {
+    const selectedIds = Array.from(state.selectedCarrierIds);
+    try {
+      showToast('Preparing CSV Export file...', 'info');
+      const res = await fetch('/api/export/csv', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${state.sessionToken}`
+        },
+        body: JSON.stringify({
+          ids: selectedIds.length > 0 ? selectedIds : null,
+          exportType: 'ALL'
+        })
+      });
+
+      if (!res.ok) {
+        showToast('Export failed. Please check permissions or login status.', 'error');
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = selectedIds.length > 0 
+        ? `selected_carrier_leads_${selectedIds.length}_${Date.now()}.csv` 
+        : `all_carrier_leads_${Date.now()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      showToast(`CSV Export downloaded successfully (${selectedIds.length > 0 ? selectedIds.length + ' selected' : 'all'} leads)!`, 'success');
+    } catch (err) {
+      console.error('Export error:', err);
+      showToast('Failed to download CSV export file.', 'error');
+    }
+  });
+}
+
 async function triggerCsvExport(exportType = 'ALL') {
   try {
     const res = await fetch('/api/export/csv', {

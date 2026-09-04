@@ -693,15 +693,37 @@ app.post('/api/export/csv', (req, res) => {
   const sessionUser = requireAuth(req, res);
   if (!sessionUser) return;
 
+  const { ids, exportType } = req.body;
   let records = [...carriersDatabase];
+
+  // STRICT LEAD ISOLATION FOR SALES REPS
   if (sessionUser.role === 'SALES_REP') {
     records = records.filter(c => c.assignedRep === sessionUser.name);
   }
 
-  const headers = ['USDOT', 'MC Number', 'Company Name', 'Owner', 'Phone', 'Email', 'Power Units', 'Equipment', 'City', 'State', 'Status', 'Assigned Rep'];
+  // Filter specific selected carrier IDs if provided
+  if (ids && Array.isArray(ids) && ids.length > 0) {
+    records = records.filter(c => ids.includes(c.id) || ids.includes(c.usdot));
+  }
+
+  const headers = ['USDOT', 'MC Number', 'Company Name', 'Owner Name', 'Phone', 'Email', 'Power Units', 'Equipment', 'City', 'State', 'CRM Status', 'Assigned Rep', 'Authority Date'];
   const rows = [headers.join(',')];
   records.forEach(c => {
-    rows.push([c.usdot, c.mcNumber, `"${c.companyName}"`, `"${c.ownerName}"`, `"${c.phone}"`, c.email, c.powerUnits, `"${c.equipment.join(' / ')}"`, `"${c.city}"`, c.state, c.crmStatus, `"${c.assignedRep}"`].join(','));
+    rows.push([
+      c.usdot || '',
+      c.mcNumber || '',
+      `"${(c.companyName || '').replace(/"/g, '""')}"`,
+      `"${(c.ownerName || '').replace(/"/g, '""')}"`,
+      `"${(c.phone || '').replace(/"/g, '""')}"`,
+      c.email || '',
+      c.powerUnits || 0,
+      `"${Array.isArray(c.equipment) ? c.equipment.join(' / ') : (c.equipment || '')}"`,
+      `"${(c.city || '').replace(/"/g, '""')}"`,
+      c.state || '',
+      c.crmStatus || 'New Lead',
+      `"${(c.assignedRep || '').replace(/"/g, '""')}"`,
+      c.authorityDate || ''
+    ].join(','));
   });
 
   res.setHeader('Content-Type', 'text/csv');
