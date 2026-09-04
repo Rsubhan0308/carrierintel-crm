@@ -1060,9 +1060,10 @@ body {
 
 .actions-cell {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
   justify-content: flex-end;
+  white-space: nowrap;
 }
 
 .equipment-badge {
