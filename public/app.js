@@ -1038,30 +1038,45 @@ async function openCarrierModal(carrierId) {
     state.activeCarrier = c;
 
     document.getElementById('modal-company-name').innerText = c.companyName;
-    document.getElementById('modal-mc-number').innerText = c.mcNumber;
+    document.getElementById('modal-mc-number').innerText = c.mcNumber ? `MC-${c.mcNumber}` : 'MC-N/A';
     document.getElementById('modal-dot-number').innerText = `DOT-${c.usdot}`;
 
-    document.getElementById('modal-owner').innerText = c.ownerName || 'N/A';
+    document.getElementById('modal-owner').innerText = c.ownerName || 'Unknown Owner';
     
     const cleanP = (c.phone || '').replace(/\D/g, '');
     const modalPhoneElem = document.getElementById('modal-phone');
     if (cleanP) {
-      modalPhoneElem.innerHTML = `<button class="btn btn-sm btn-outline" onclick="startMandatoryCallRecorder('${c.id}', '${cleanP}')" style="color: var(--accent-green); font-weight:700;"><i class="fa-solid fa-phone-volume"></i> Call & Record (${c.phone})</button>`;
+      modalPhoneElem.innerHTML = `<button class="call-btn-link" onclick="startMandatoryCallRecorder('${c.id}', '${cleanP}')" title="Call & Record Carrier"><i class="fa-solid fa-phone"></i> Call & Record (${c.phone})</button>`;
     } else {
-      modalPhoneElem.innerText = 'N/A';
+      modalPhoneElem.innerHTML = '<span style="color:var(--text-muted);">No Phone Recorded</span>';
     }
 
-    document.getElementById('modal-email').innerHTML = c.email ? `<a href="mailto:${c.email}" class="email-link">${c.email}</a>` : 'N/A';
-    document.getElementById('modal-website').innerText = c.website || 'No Website';
-    document.getElementById('modal-fleet').innerText = `${c.powerUnits} Power Units / ${c.drivers} Drivers`;
+    document.getElementById('modal-email').innerHTML = c.email ? `<a href="mailto:${c.email}" class="email-link"><i class="fa-solid fa-envelope"></i> ${c.email}</a>` : '<span style="color:var(--text-muted);">No Email Recorded</span>';
+    document.getElementById('modal-website').innerHTML = c.website ? `<a href="${c.website.startsWith('http') ? c.website : 'https://' + c.website}" target="_blank" class="email-link"><i class="fa-solid fa-globe"></i> ${c.website}</a>` : '<span style="color:var(--text-muted);">No Website Recorded</span>';
+    
+    // Physical Address Format
+    const addressParts = [c.address, c.city, c.state, c.zip].filter(Boolean);
+    const addressStr = addressParts.length > 0 ? addressParts.join(', ') : `${c.city || ''}, ${c.state || ''} ${c.zip || ''}`.trim() || 'Location N/A';
+    document.getElementById('modal-address').innerText = addressStr;
+
+    // FMCSA Specs & Authority Date
+    const mcTag = c.mcNumber ? `<span class="id-pill">MC ${c.mcNumber}</span>` : '';
+    const dotTag = c.usdot ? `<span class="id-pill">DOT ${c.usdot}</span>` : '';
+    document.getElementById('modal-fmcsa-ids').innerHTML = `${dotTag} ${mcTag}`;
+    document.getElementById('modal-auth-date').innerText = c.authorityDate || 'N/A';
+    document.getElementById('modal-auth-age').innerHTML = `<span class="${c.isFreshMC ? 'auth-age-fresh' : 'auth-age-standard'}">${c.authorityDaysOld || 0} Days Old (${c.isFreshMC ? 'Fresh MC < 30 Days' : 'Established MC'})</span>`;
+    document.getElementById('modal-fleet').innerText = `${c.powerUnits || 0} Power Units / ${c.drivers || 0} Drivers`;
     document.getElementById('modal-equipment').innerText = Array.isArray(c.equipment) ? c.equipment.join(' / ') : (c.equipment || 'Dry Van');
+    document.getElementById('modal-operating-status').innerHTML = `<span class="badge badge-green"><i class="fa-solid fa-circle-check"></i> Authorized for Hire (Active)</span>`;
 
     document.getElementById('modal-crm-status-select').value = c.crmStatus;
     document.getElementById('modal-assigned-rep-select').value = c.assignedRep;
 
     renderModalNotes(c.notes || []);
     document.getElementById('carrier-modal').classList.add('active');
-  } catch (err) {}
+  } catch (err) {
+    console.error('Error opening carrier modal:', err);
+  }
 }
 
 function renderModalNotes(notes) {

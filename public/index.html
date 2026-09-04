@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="/styles.css?v=6.0">
+  <link rel="stylesheet" href="/styles.css?v=7.0">
 </head>
 <body>
 
@@ -511,12 +511,57 @@
 
         <div class="modal-tab-content active" id="modaltab-info">
           <div class="info-grid">
-            <div class="info-item"><span class="info-label"><i class="fa-solid fa-user"></i> Owner / Contact</span><span class="info-value" id="modal-owner">--</span></div>
-            <div class="info-item"><span class="info-label"><i class="fa-solid fa-phone"></i> Phone Number</span><span class="info-value" id="modal-phone">--</span></div>
-            <div class="info-item"><span class="info-label"><i class="fa-solid fa-envelope"></i> Email Address</span><span class="info-value" id="modal-email">--</span></div>
-            <div class="info-item"><span class="info-label"><i class="fa-solid fa-globe"></i> Website</span><span class="info-value" id="modal-website">--</span></div>
-            <div class="info-item"><span class="info-label"><i class="fa-solid fa-truck"></i> Fleet & Drivers</span><span class="info-value" id="modal-fleet">--</span></div>
-            <div class="info-item"><span class="info-label"><i class="fa-solid fa-trailer"></i> Equipment</span><span class="info-value" id="modal-equipment">--</span></div>
+            <div class="info-card">
+              <div class="info-card-header"><i class="fa-solid fa-address-card" style="color: var(--accent-blue);"></i> Primary Contact & Location</div>
+              <div class="info-row">
+                <span class="info-label"><i class="fa-solid fa-user"></i> Primary Owner / Contact</span>
+                <span class="info-value" id="modal-owner">--</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label"><i class="fa-solid fa-phone"></i> Phone Number</span>
+                <span class="info-value" id="modal-phone">--</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label"><i class="fa-solid fa-envelope"></i> Email Address</span>
+                <span class="info-value" id="modal-email">--</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label"><i class="fa-solid fa-location-dot"></i> Physical Address</span>
+                <span class="info-value" id="modal-address">--</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label"><i class="fa-solid fa-globe"></i> Website</span>
+                <span class="info-value" id="modal-website">--</span>
+              </div>
+            </div>
+
+            <div class="info-card">
+              <div class="info-card-header"><i class="fa-solid fa-truck-ramp-box" style="color: var(--accent-orange);"></i> FMCSA Operations & Fleet Profile</div>
+              <div class="info-row">
+                <span class="info-label"><i class="fa-solid fa-id-card"></i> USDOT & MC Number</span>
+                <span class="info-value" id="modal-fmcsa-ids">--</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label"><i class="fa-solid fa-calendar-days"></i> Authority Grant Date</span>
+                <span class="info-value" id="modal-auth-date">--</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label"><i class="fa-solid fa-hourglass-half"></i> Authority Age</span>
+                <span class="info-value" id="modal-auth-age">--</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label"><i class="fa-solid fa-truck-front"></i> Fleet Size & Drivers</span>
+                <span class="info-value" id="modal-fleet">--</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label"><i class="fa-solid fa-boxes-stacked"></i> Equipment / Trailer Types</span>
+                <span class="info-value" id="modal-equipment">--</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label"><i class="fa-solid fa-shield-halved"></i> Operating Status</span>
+                <span class="info-value" id="modal-operating-status">--</span>
+              </div>
+            </div>
           </div>
 
           <div class="crm-update-box">
