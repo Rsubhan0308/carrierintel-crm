@@ -660,35 +660,60 @@ function renderCarrierTable() {
 
     const rawPhone = carrier.phone || '';
     const cleanPhone = rawPhone.replace(/\D/g, '');
-    const phoneHtml = cleanPhone ? `<button class="btn btn-sm btn-outline" onclick="startMandatoryCallRecorder('${carrier.id}', '${cleanPhone}')" style="color: var(--accent-green); font-weight:600;"><i class="fa-solid fa-phone-volume"></i> ${rawPhone}</button>` : 'N/A';
+    const phoneHtml = cleanPhone 
+      ? `<button class="call-btn-link" onclick="startMandatoryCallRecorder('${carrier.id}', '${cleanPhone}')" title="Call Carrier"><i class="fa-solid fa-phone"></i> ${rawPhone}</button>` 
+      : `<span style="font-size:0.73rem; color:var(--text-dim);">No Phone</span>`;
+    
+    const emailHtml = carrier.email 
+      ? `<a href="mailto:${carrier.email}" class="email-link" title="${carrier.email}"><i class="fa-solid fa-envelope"></i> ${carrier.email}</a>` 
+      : `<span style="font-size:0.73rem; color:var(--text-dim);">No Email</span>`;
+
+    const mcTag = carrier.mcNumber ? `<span class="id-pill">MC ${carrier.mcNumber}</span>` : '';
+    const dotTag = carrier.usdot ? `<span class="id-pill">DOT ${carrier.usdot}</span>` : '';
 
     tr.innerHTML = `
       <td><input type="checkbox" class="carrier-checkbox" data-id="${carrier.id}" ${isChecked ? 'checked' : ''}></td>
       <td>
         <div class="company-cell">
-          <span class="comp-name">${carrier.companyName}</span>
-          <div class="comp-ids"><span>DOT: ${carrier.usdot}</span> • <span>${carrier.mcNumber}</span></div>
+          <span class="comp-name" title="${carrier.companyName}">${carrier.companyName}</span>
+          <div class="comp-ids">${dotTag} ${mcTag}</div>
         </div>
       </td>
       <td>
         <div class="contact-cell">
-          <span class="contact-owner">${carrier.ownerName}</span>
-          <span class="contact-phone">${phoneHtml}</span>
-          <span class="contact-email"><i class="fa-solid fa-envelope"></i> ${carrier.email || 'No email'}</span>
+          <span class="contact-owner">${carrier.ownerName || 'Unknown Owner'}</span>
+          <div>${phoneHtml}</div>
+          <div>${emailHtml}</div>
         </div>
       </td>
-      <td><strong>${carrier.city}, ${carrier.state}</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">${carrier.zip}</span></td>
-      <td><div><strong>${carrier.powerUnits}</strong> Power Units</div><div style="margin-top:4px;">${equipBadges}</div></td>
-      <td><span>${carrier.authorityDate}</span><br><span class="${carrier.isFreshMC ? 'badge badge-hot' : ''}" style="font-size:0.72rem;">${carrier.authorityDaysOld} days old</span></td>
-      <td><div class="accuracy-badge"><i class="fa-solid fa-circle-check"></i> ${carrier.accuracyScore}%</div></td>
       <td>
-        <span class="badge ${statusClass}">${carrier.crmStatus}</span>
-        <div style="font-size:0.72rem; color:var(--accent-cyan); margin-top:2px;">Rep: ${carrier.assignedRep}</div>
+        <div class="location-cell">
+          <span class="loc-city">${carrier.city || ''}, ${carrier.state || ''}</span>
+          <span class="loc-address" title="${carrier.address || ''}">${carrier.address || carrier.zip || ''}</span>
+        </div>
       </td>
       <td>
-        <div style="display: flex; flex-direction: column; gap: 4px;">
-          <button class="btn btn-sm btn-outline view-details-btn" data-id="${carrier.id}"><i class="fa-solid fa-eye"></i> Details</button>
-          <button class="btn btn-sm btn-accent open-script-btn" data-id="${carrier.id}"><i class="fa-solid fa-scroll"></i> Pitch Script</button>
+        <div class="fleet-cell">
+          <span class="fleet-units"><i class="fa-solid fa-truck-front"></i> <strong>${carrier.powerUnits || 0}</strong> Units</span>
+          <div class="equip-badges">${equipBadges}</div>
+        </div>
+      </td>
+      <td>
+        <div class="authority-cell">
+          <span class="auth-date">${carrier.authorityDate || 'N/A'}</span>
+          <span class="${carrier.isFreshMC ? 'auth-age-fresh' : 'auth-age-standard'}">${carrier.authorityDaysOld}d old</span>
+        </div>
+      </td>
+      <td>
+        <div class="status-cell">
+          <span class="badge ${statusClass}">${carrier.crmStatus}</span>
+          <div class="rep-tag">Rep: ${carrier.assignedRep || 'Unassigned'}</div>
+        </div>
+      </td>
+      <td style="text-align: right;">
+        <div class="actions-cell">
+          <button class="btn btn-xs btn-outline view-details-btn" data-id="${carrier.id}" title="View Details"><i class="fa-solid fa-eye"></i> Details</button>
+          <button class="btn btn-xs btn-accent open-script-btn" data-id="${carrier.id}" title="Pitch Script"><i class="fa-solid fa-scroll"></i> Pitch</button>
         </div>
       </td>
     `;

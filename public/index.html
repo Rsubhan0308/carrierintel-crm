@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="/styles.css?v=3.0">
+  <link rel="stylesheet" href="/styles.css?v=5.0">
 </head>
 <body>
 
@@ -261,17 +261,26 @@
 
         <div class="table-responsive">
           <table class="carrier-table">
+            <colgroup>
+              <col style="width: 38px;">
+              <col style="width: 22%;">
+              <col style="width: 24%;">
+              <col style="width: 14%;">
+              <col style="width: 13%;">
+              <col style="width: 12%;">
+              <col style="width: 15%;">
+              <col style="width: 135px;">
+            </colgroup>
             <thead>
               <tr>
-                <th width="40"><input type="checkbox" id="master-checkbox"></th>
+                <th><input type="checkbox" id="master-checkbox"></th>
                 <th>Company / MC / DOT</th>
                 <th>Owner & Contact Info</th>
                 <th>Location</th>
                 <th>Fleet & Equipment</th>
                 <th>Authority Date</th>
-                <th>Accuracy</th>
                 <th>Lead Status</th>
-                <th>Actions</th>
+                <th style="text-align: right;">Actions</th>
               </tr>
             </thead>
             <tbody id="carrier-table-body"></tbody>
