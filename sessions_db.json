@@ -1,0 +1,26 @@
+{
+  "SESS-1788528147424-10fry6p": {
+    "id": "USER-ADMIN",
+    "name": "System Admin",
+    "email": "admin@carrierintel.com",
+    "role": "ADMIN"
+  },
+  "SESS-1788528147449-5bjnbgb": {
+    "id": "USER-ALEX",
+    "name": "Alex Johnson",
+    "email": "alex@carrierintel.com",
+    "role": "SALES_REP"
+  },
+  "SESS-1788528147454-zc2muxo": {
+    "id": "USER-SARAH",
+    "name": "Sarah Davis",
+    "email": "sarah@carrierintel.com",
+    "role": "SALES_REP"
+  },
+  "SESS-1788528290987-qrpi51a": {
+    "id": "USER-ALEX",
+    "name": "Alex Johnson",
+    "email": "alex@carrierintel.com",
+    "role": "SALES_REP"
+  }
+}

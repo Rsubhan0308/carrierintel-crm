@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CarrierIntel Pro - FMCSA Scraper & Dispatch Sales Lead Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+  <!-- REAL AUTHENTICATION LOGIN OVERLAY -->
+  <div id="login-screen" class="login-overlay">
+    <div class="login-card">
+      <div class="brand-icon-lg"><i class="fa-solid fa-truck-fast"></i></div>
+      <h2>CarrierIntel<span>PRO</span></h2>
+      <p class="login-sub">Dispatch Lead Engine & Enterprise CRM</p>
+      
+      <form id="login-form">
+        <div class="form-group">
+          <label><i class="fa-solid fa-envelope"></i> Corporate Email</label>
+          <input type="email" id="login-email" placeholder="admin@carrierintel.com" required>
+        </div>
+        <div class="form-group">
+          <label><i class="fa-solid fa-lock"></i> Password</label>
+          <input type="password" id="login-password" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg"><i class="fa-solid fa-right-to-bracket"></i> Secure Account Login</button>
+      </form>
+
+      <div class="demo-logins-box">
+        <span>Quick Demo Accounts:</span>
+        <div class="demo-buttons">
+          <button type="button" class="btn-demo admin" onclick="quickFillLogin('admin@carrierintel.com', 'admin123')">👑 Admin</button>
+          <button type="button" class="btn-demo rep" onclick="quickFillLogin('alex@carrierintel.com', 'alex123')">👤 Alex (Rep)</button>
+          <button type="button" class="btn-demo rep" onclick="quickFillLogin('sarah@carrierintel.com', 'sarah123')">👤 Sarah (Rep)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTHENTICATED APP CONTAINER -->
+  <div class="app-container" id="app-container" style="display: none;">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">
+          <i class="fa-solid fa-truck-fast"></i>
+        </div>
+        <div class="brand-text">
+          <h2>CarrierIntel<span>PRO</span></h2>
+          <p>Truck Dispatch Lead Engine</p>
+        </div>
+        <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" title="Toggle Sidebar Menu">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+      </div>
+
+      <nav class="nav-menu">
+        <a href="#directory" class="nav-item active" data-tab="directory" data-tooltip="Carrier Directory" onclick="switchTab('directory');">
+          <i class="fa-solid fa-address-book"></i>
+          <span>Carrier Directory</span>
+          <span class="badge" id="nav-total-count">0</span>
+        </a>
+        <a href="#fresh-mc" class="nav-item" data-tab="fresh-mc" data-tooltip="Fresh MC Radar" onclick="switchTab('fresh-mc');">
+          <i class="fa-solid fa-bolt"></i>
+          <span>Fresh MC Radar</span>
+          <span class="badge badge-hot" id="nav-fresh-count">0</span>
+        </a>
+        <a href="#bulk-scraper" class="nav-item admin-only-element" data-tab="bulk-scraper" data-tooltip="Bulk Crawler Hub" onclick="switchTab('bulk-scraper');">
+          <i class="fa-solid fa-spider"></i>
+          <span>Bulk Crawler Hub</span>
+          <span class="pulse-indicator"></span>
+        </a>
+        <a href="#sales-crm" class="nav-item" data-tab="sales-crm" data-tooltip="Sales Team CRM" onclick="switchTab('sales-crm');">
+          <i class="fa-solid fa-chart-kanban"></i>
+          <span>Sales Team CRM</span>
+        </a>
+        <a href="#users-management" class="nav-item admin-only-element" data-tab="users-management" data-tooltip="Team User Management" onclick="switchTab('users-management');">
+          <i class="fa-solid fa-users-gear"></i>
+          <span>Team & Users</span>
+        </a>
+        <a href="#activity-tracker" class="nav-item admin-only-element" data-tab="activity-tracker" data-tooltip="Call & Activity Tracker" onclick="switchTab('activity-tracker');">
+          <i class="fa-solid fa-phone-volume"></i>
+          <span>Call Tracker</span>
+        </a>
+        <a href="#export" class="nav-item" data-tab="export" data-tooltip="Export & Sync" onclick="switchTab('export');">
+          <i class="fa-solid fa-file-export"></i>
+          <span>Export & Sync</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="system-status">
+          <div class="status-dot"></div>
+          <div class="status-info">
+            <span class="status-title">FMCSA Data Engine</span>
+            <span class="status-sub">Live Sync • 99.4% Verified</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Top Bar -->
+      <header class="top-header">
+        <div class="header-search-bar">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="global-search" placeholder="Search USDOT#, MC#, Carrier Name, Phone, Email, Owner, State...">
+          <button class="clear-search-btn" id="clear-search-btn" style="display: none;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="user-profile-badge">
+          <div class="user-info">
+            <span class="user-name" id="user-display-name">System Admin</span>
+            <span class="user-role-tag" id="user-display-role">👑 ADMIN</span>
+          </div>
+          <button class="btn btn-sm btn-outline-danger" id="logout-btn" title="Log Out"><i class="fa-solid fa-power-off"></i> Logout</button>
+        </div>
+
+        <div class="header-actions">
+          <button class="btn btn-outline admin-only-element" id="quick-scrape-btn">
+            <i class="fa-solid fa-plus"></i> Scrape New DOT
+          </button>
+          <button class="btn btn-primary" id="export-selected-btn">
+            <i class="fa-solid fa-download"></i> Export Leads (<span id="selected-count">0</span>)
+          </button>
+          <button class="btn btn-outline-danger admin-only-element" id="clear-database-btn" style="border-color: rgba(239, 68, 68, 0.4); color: #ef4444;">
+            <i class="fa-solid fa-trash-can"></i> Clear All Leads
+          </button>
+        </div>
+      </header>
+
+      <!-- Stats Overview Banner -->
+      <section class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon icon-blue"><i class="fa-solid fa-truck"></i></div>
+          <div class="stat-details">
+            <span class="stat-value" id="stat-total">--</span>
+            <span class="stat-label">Indexed Carriers</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon icon-orange"><i class="fa-solid fa-fire"></i></div>
+          <div class="stat-details">
+            <span class="stat-value" id="stat-fresh">--</span>
+            <span class="stat-label">Fresh MCs (&lt;30 Days)</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon icon-green"><i class="fa-solid fa-envelope-circle-check"></i></div>
+          <div class="stat-details">
+            <span class="stat-value" id="stat-emails">--</span>
+            <span class="stat-label">Verified Emails</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon icon-purple"><i class="fa-solid fa-phone"></i></div>
+          <div class="stat-details">
+            <span class="stat-value" id="stat-phones">--</span>
+            <span class="stat-label">Ready Phone Numbers</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon icon-cyan"><i class="fa-solid fa-bullseye"></i></div>
+          <div class="stat-details">
+            <span class="stat-value" id="stat-active">--</span>
+            <span class="stat-label">Active Sales Leads</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 1: CARRIER DIRECTORY -->
+      <section class="tab-content active" id="tab-directory">
+        <!-- Advanced Filter Toolbar -->
+        <div class="filter-panel">
+          <div class="filter-header">
+            <div class="filter-title"><i class="fa-solid fa-sliders"></i> Advanced Carrier Search & Filtration System</div>
+            <button class="btn-text" id="reset-filters-btn"><i class="fa-solid fa-rotate-left"></i> Reset Filters</button>
+          </div>
+
+          <div class="filter-controls-grid">
+            <div class="filter-group">
+              <label for="filter-state">US State</label>
+              <select id="filter-state">
+                <option value="ALL">All US States (50)</option>
+                <option value="TX">Texas (TX)</option>
+                <option value="FL">Florida (FL)</option>
+                <option value="CA">California (CA)</option>
+                <option value="GA">Georgia (GA)</option>
+                <option value="IL">Illinois (IL)</option>
+                <option value="NC">North Carolina (NC)</option>
+                <option value="OH">Ohio (OH)</option>
+                <option value="PA">Pennsylvania (PA)</option>
+                <option value="TN">Tennessee (TN)</option>
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label for="filter-equipment">Equipment / Trailer</label>
+              <select id="filter-equipment">
+                <option value="ALL">All Equipment Types</option>
+                <option value="Dry Van">Dry Van</option>
+                <option value="Reefer">Reefer (Refrigerated)</option>
+                <option value="Flatbed">Flatbed</option>
+                <option value="Step Deck">Step Deck</option>
+                <option value="Box Truck">Box Truck</option>
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label for="filter-fleet-size">Fleet Size (Power Units)</label>
+              <select id="filter-fleet-size">
+                <option value="ALL">All Fleet Sizes</option>
+                <option value="1-3">1 - 3 Trucks (Owner Operators)</option>
+                <option value="4-10">4 - 10 Trucks (Small Fleet)</option>
+                <option value="11-25">11 - 25 Trucks (Medium Fleet)</option>
+                <option value="50+">50+ Trucks (Enterprise)</option>
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label for="filter-mc-age">MC Authority Age</label>
+              <select id="filter-mc-age">
+                <option value="ALL">All Authority Ages</option>
+                <option value="7">⚡ 0 - 7 Days (Brand New MCs)</option>
+                <option value="14">🔥 0 - 14 Days (Hot Dispatch Leads)</option>
+                <option value="30">📅 0 - 30 Days (Under 1 Month)</option>
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label>Contact Verification</label>
+              <div class="checkbox-pills">
+                <label class="pill-checkbox"><input type="checkbox" id="filter-email-only" checked> <span>Has Email</span></label>
+                <label class="pill-checkbox"><input type="checkbox" id="filter-phone-only" checked> <span>Has Phone</span></label>
+              </div>
+            </div>
+
+            <div class="filter-group">
+              <label for="filter-crm-status">Sales Pipeline Status</label>
+              <select id="filter-crm-status">
+                <option value="ALL">All CRM Statuses</option>
+                <option value="New Lead">New Lead</option>
+                <option value="Contacted">Contacted</option>
+                <option value="In Discussion">In Discussion</option>
+                <option value="Pitch Sent">Pitch Sent</option>
+                <option value="Onboarded">Onboarded</option>
+                <option value="Disqualified">Disqualified</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-action-bar">
+          <div class="table-results-info">
+            Showing <strong id="results-count-text">0</strong> verified motor carriers
+          </div>
+          <div class="table-bulk-actions">
+            <label class="select-all-label">
+              <input type="checkbox" id="select-all-checkbox"> Select Page
+            </label>
+            <button class="btn btn-sm btn-outline admin-only-element" id="bulk-assign-rep-btn"><i class="fa-solid fa-user-plus"></i> Assign Rep</button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="carrier-table">
+            <thead>
+              <tr>
+                <th width="40"><input type="checkbox" id="master-checkbox"></th>
+                <th>Company / MC / DOT</th>
+                <th>Owner & Contact Info</th>
+                <th>Location</th>
+                <th>Fleet & Equipment</th>
+                <th>Authority Date</th>
+                <th>Accuracy</th>
+                <th>Lead Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="carrier-table-body"></tbody>
+          </table>
+        </div>
+
+        <div class="pagination-bar">
+          <div class="pagination-info">
+            Page <span id="current-page-num">1</span> of <span id="total-pages-num">1</span>
+          </div>
+          <div class="pagination-controls">
+            <button class="pagination-btn" id="prev-page-btn" disabled><i class="fa-solid fa-chevron-left"></i> Previous</button>
+            <button class="pagination-btn" id="next-page-btn">Next <i class="fa-solid fa-chevron-right"></i></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: FRESH MC RADAR -->
+      <section class="tab-content" id="tab-fresh-mc">
+        <div class="banner-fresh-mc">
+          <div class="banner-icon"><i class="fa-solid fa-bolt"></i></div>
+          <div class="banner-text">
+            <h2>Fresh MC Radar & High-Value Dispatch Feed</h2>
+            <p>Target new motor carriers within their first 14 days of DOT authority approval!</p>
+          </div>
+        </div>
+        <div class="fresh-mc-grid" id="fresh-mc-cards-container"></div>
+      </section>
+
+      <!-- TAB 3: BULK CRAWLER HUB (Admin Only) -->
+      <section class="tab-content admin-only-element" id="tab-bulk-scraper">
+        <div class="scraper-layout">
+          <div class="scraper-config-card">
+            <h3><i class="fa-solid fa-gears"></i> High-Speed Bulk Scraper Setup</h3>
+            <p class="section-desc">Crawl SAFER, CarrierSource, Google Search, and WHOIS domain registries with live contact enrichment.</p>
+
+            <form id="bulk-scraper-form">
+              <div class="form-group">
+                <label for="scraper-dots-input">Paste USDOT / MC List (One per line)</label>
+                <textarea id="scraper-dots-input" rows="4" placeholder="3894210&#10;3910245&#10;3877120"></textarea>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-accent btn-block" id="start-crawler-btn">
+                  <i class="fa-solid fa-play"></i> Start Bulk Scraper Engine
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div class="scraper-terminal-card">
+            <div class="terminal-header">
+              <div class="terminal-title"><span class="pulse-green"></span> Live Crawler Output Console</div>
+            </div>
+            <div class="progress-section">
+              <div class="progress-bar-container"><div class="progress-bar-fill" id="crawler-progress-fill" style="width: 0%;"></div></div>
+              <div class="progress-labels"><span id="crawler-progress-text">Status: Idle</span><span id="crawler-progress-pct">0%</span></div>
+            </div>
+            <div class="terminal-console" id="terminal-console-output">
+              <div class="terminal-line system-line">[SYSTEM] Scraper engine ready. Click "Start Bulk Scraper Engine" to crawl FMCSA.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: SALES TEAM CRM -->
+      <section class="tab-content" id="tab-sales-crm">
+        <div class="crm-header-bar">
+          <div class="crm-title">
+            <h2><i class="fa-solid fa-chart-kanban"></i> Sales Pipeline Board</h2>
+            <p>Track cold outreach, record call notes, and monitor conversions.</p>
+          </div>
+        </div>
+
+        <div class="kanban-board">
+          <div class="kanban-column" data-status="New Lead">
+            <div class="kanban-column-header col-new"><span>New Lead</span><span class="column-count" id="count-new">0</span></div>
+            <div class="kanban-cards-container" id="kanban-new-lead"></div>
+          </div>
+          <div class="kanban-column" data-status="Contacted">
+            <div class="kanban-column-header col-contacted"><span>Contacted</span><span class="column-count" id="count-contacted">0</span></div>
+            <div class="kanban-cards-container" id="kanban-contacted"></div>
+          </div>
+          <div class="kanban-column" data-status="In Discussion">
+            <div class="kanban-column-header col-discussion"><span>In Discussion</span><span class="column-count" id="count-discussion">0</span></div>
+            <div class="kanban-cards-container" id="kanban-in-discussion"></div>
+          </div>
+          <div class="kanban-column" data-status="Pitch Sent">
+            <div class="kanban-column-header col-pitch"><span>Pitch Sent</span><span class="column-count" id="count-pitch">0</span></div>
+            <div class="kanban-cards-container" id="kanban-pitch-sent"></div>
+          </div>
+          <div class="kanban-column" data-status="Onboarded">
+            <div class="kanban-column-header col-onboarded"><span>🎉 Onboarded</span><span class="column-count" id="count-onboarded">0</span></div>
+            <div class="kanban-cards-container" id="kanban-onboarded"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: ADMIN TEAM USER MANAGEMENT (Admin Only) -->
+      <section class="tab-content admin-only-element" id="tab-users-management">
+        <div class="user-management-container">
+          <div class="user-mgmt-header">
+            <h2><i class="fa-solid fa-users-gear" style="color: var(--accent-cyan);"></i> Sales Team User Management</h2>
+            <p>Create sales person accounts, assign leads, and manage corporate access credentials.</p>
+          </div>
+
+          <div class="user-mgmt-grid">
+            <div class="user-create-card">
+              <h3><i class="fa-solid fa-user-plus"></i> Create New Sales Team Account</h3>
+              <form id="create-user-form">
+                <div class="form-group">
+                  <label>Full Name</label>
+                  <input type="text" id="new-user-name" placeholder="John Smith" required>
+                </div>
+                <div class="form-group">
+                  <label>Corporate Email</label>
+                  <input type="email" id="new-user-email" placeholder="john@carrierintel.com" required>
+                </div>
+                <div class="form-group">
+                  <label>Initial Password</label>
+                  <input type="password" id="new-user-password" placeholder="••••••••" required>
+                </div>
+                <div class="form-group">
+                  <label>System Role</label>
+                  <select id="new-user-role">
+                    <option value="SALES_REP">👤 Sales Representative (Isolated Lead View)</option>
+                    <option value="ADMIN">👑 System Administrator (Full Access)</option>
+                  </select>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block"><i class="fa-solid fa-check"></i> Create Account</button>
+              </form>
+            </div>
+
+            <div class="user-list-card">
+              <h3><i class="fa-solid fa-id-card"></i> Active Sales Team Roster</h3>
+              <div class="table-responsive">
+                <table class="carrier-table">
+                  <thead>
+                    <tr>
+                      <th>Team Member</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Assigned Leads</th>
+                      <th>Calls Placed</th>
+                      <th>Onboarded</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="user-table-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 6: ADMIN CALL & ACTIVITY TRACKER (Admin Only) -->
+      <section class="tab-content admin-only-element" id="tab-activity-tracker">
+        <div class="activity-tracker-container">
+          <div class="tracker-header">
+            <h2><i class="fa-solid fa-phone-volume" style="color: var(--accent-green);"></i> Sales Rep Live Call & Activity Audit Stream</h2>
+            <p>Monitor live calls placed by sales reps, inspect timestamped notes, and listen to locked call audio recordings.</p>
+          </div>
+
+          <div class="activity-feed-card">
+            <div class="feed-header">
+              <span><i class="fa-solid fa-clock-rotate-left"></i> Live Call Stream & Audio Recording Audit</span>
+              <div class="feed-filter">
+                <label>Filter by Rep:</label>
+                <select id="tracker-rep-filter" onchange="fetchAdminActivityLogs()">
+                  <option value="ALL">All Sales Reps</option>
+                  <option value="Alex Johnson">Alex Johnson</option>
+                  <option value="Sarah Davis">Sarah Davis</option>
+                  <option value="Michael Miller">Michael Miller</option>
+                  <option value="David Wilson">David Wilson</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="activity-log-stream" id="activity-log-stream-container"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 7: EXPORT & SYNC -->
+      <section class="tab-content" id="tab-export">
+        <div class="export-container">
+          <h2><i class="fa-solid fa-file-csv"></i> Bulk CSV Exporter</h2>
+          <div class="export-cards-grid">
+            <div class="export-card">
+              <h3>Cold Calling List Preset</h3>
+              <button class="btn btn-primary btn-block" onclick="triggerCsvExport('COLD_CALLING')"><i class="fa-solid fa-download"></i> Download CSV</button>
+            </div>
+            <div class="export-card">
+              <h3>Cold Email List Preset</h3>
+              <button class="btn btn-primary btn-block" onclick="triggerCsvExport('COLD_EMAIL')"><i class="fa-solid fa-download"></i> Download CSV</button>
+            </div>
+            <div class="export-card">
+              <h3>Full Raw Carrier Export</h3>
+              <button class="btn btn-secondary btn-block" onclick="triggerCsvExport('FULL')"><i class="fa-solid fa-download"></i> Download Master CSV</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- CARRIER DETAILS MODAL -->
+  <div class="modal-overlay" id="carrier-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h2 id="modal-company-name">Carrier Details</h2>
+          <span class="badge badge-hot" id="modal-mc-number">MC-000000</span>
+          <span class="badge badge-blue" id="modal-dot-number">DOT-000000</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button class="btn btn-sm btn-accent" id="modal-script-btn"><i class="fa-solid fa-scroll"></i> Pitch Script</button>
+          <button class="close-modal-btn" id="close-modal-btn"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <div class="modal-tabs-header">
+          <button class="modal-tab-btn active" data-modaltab="info">General Info & FMCSA Data</button>
+          <button class="modal-tab-btn" data-modaltab="notes">Sales Notes & History (<span id="modal-notes-count">0</span>)</button>
+        </div>
+
+        <div class="modal-tab-content active" id="modaltab-info">
+          <div class="info-grid">
+            <div class="info-item"><span class="info-label"><i class="fa-solid fa-user"></i> Owner / Contact</span><span class="info-value" id="modal-owner">--</span></div>
+            <div class="info-item"><span class="info-label"><i class="fa-solid fa-phone"></i> Phone Number</span><span class="info-value" id="modal-phone">--</span></div>
+            <div class="info-item"><span class="info-label"><i class="fa-solid fa-envelope"></i> Email Address</span><span class="info-value" id="modal-email">--</span></div>
+            <div class="info-item"><span class="info-label"><i class="fa-solid fa-globe"></i> Website</span><span class="info-value" id="modal-website">--</span></div>
+            <div class="info-item"><span class="info-label"><i class="fa-solid fa-truck"></i> Fleet & Drivers</span><span class="info-value" id="modal-fleet">--</span></div>
+            <div class="info-item"><span class="info-label"><i class="fa-solid fa-trailer"></i> Equipment</span><span class="info-value" id="modal-equipment">--</span></div>
+          </div>
+
+          <div class="crm-update-box">
+            <h4><i class="fa-solid fa-pen-to-square"></i> Quick Update Sales Status</h4>
+            <div class="form-row">
+              <div class="form-group half">
+                <label>Pipeline Status</label>
+                <select id="modal-crm-status-select">
+                  <option value="New Lead">New Lead</option>
+                  <option value="Contacted">Contacted</option>
+                  <option value="In Discussion">In Discussion</option>
+                  <option value="Pitch Sent">Pitch Sent</option>
+                  <option value="Onboarded">Onboarded</option>
+                  <option value="Disqualified">Disqualified</option>
+                </select>
+              </div>
+              <div class="form-group half admin-only-element">
+                <label>Assigned Sales Rep</label>
+                <select id="modal-assigned-rep-select">
+                  <option value="Alex Johnson">Alex Johnson</option>
+                  <option value="Sarah Davis">Sarah Davis</option>
+                  <option value="Michael Miller">Michael Miller</option>
+                  <option value="David Wilson">David Wilson</option>
+                  <option value="Unassigned">Unassigned</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-tab-content" id="modaltab-notes">
+          <div class="add-note-box">
+            <textarea id="modal-new-note-text" rows="3" placeholder="Add timestamped call outcome or follow-up note..."></textarea>
+            <button class="btn btn-primary btn-sm" id="modal-add-note-btn"><i class="fa-solid fa-plus"></i> Save Note</button>
+          </div>
+          <div class="notes-timeline" id="modal-notes-timeline"></div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="modal-save-btn">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DYNAMIC COLD CALL SCRIPT MODAL -->
+  <div class="modal-overlay" id="script-modal">
+    <div class="modal-card modal-card-lg">
+      <div class="modal-header script-header">
+        <div class="modal-title-group">
+          <div class="script-badge-tag"><i class="fa-solid fa-scroll"></i> Tailored Dispatch Cold Call Script</div>
+          <h2 id="script-company-name">Carrier Legal Name</h2>
+          <div class="script-meta-pills" id="script-meta-pills"></div>
+        </div>
+        <button class="close-modal-btn" id="close-script-modal-btn"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="modal-body script-body">
+        <div class="script-box">
+          <div class="script-box-header">
+            <span><i class="fa-solid fa-phone-volume" style="color: var(--accent-green);"></i> 1. Opening Greeting & Pattern Interrupt</span>
+            <button class="btn-copy-script" onclick="copyScriptText('script-opener-text')"><i class="fa-solid fa-copy"></i> Copy Opener</button>
+          </div>
+          <div class="script-box-content" id="script-opener-text"></div>
+        </div>
+        <div class="script-box">
+          <div class="script-box-header">
+            <span><i class="fa-solid fa-bullseye" style="color: var(--accent-orange);"></i> 2. Tailored Value Pitch & Lane Offer</span>
+            <button class="btn-copy-script" onclick="copyScriptText('script-pitch-text')"><i class="fa-solid fa-copy"></i> Copy Pitch</button>
+          </div>
+          <div class="script-box-content" id="script-pitch-text"></div>
+        </div>
+        <div class="script-box">
+          <div class="script-box-header"><span><i class="fa-solid fa-comments" style="color: var(--accent-cyan);"></i> 3. Qualifying Discovery Questions</span></div>
+          <div class="script-box-content" id="script-questions-text"></div>
+        </div>
+        <div class="script-box highlight-box">
+          <div class="script-box-header">
+            <span><i class="fa-solid fa-flag-checkered" style="color: var(--accent-purple);"></i> 4. Closing & Onboarding Call-To-Action</span>
+            <button class="btn-copy-script" onclick="copyScriptText('script-closing-text')"><i class="fa-solid fa-copy"></i> Copy Closing</button>
+          </div>
+          <div class="script-box-content" id="script-closing-text"></div>
+        </div>
+        <div class="objection-arsenal">
+          <div class="objection-header"><i class="fa-solid fa-shield-halved"></i> Live Carrier Objection Handling Breakers</div>
+          <div class="objection-grid" id="script-objections-container"></div>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: space-between;">
+        <div style="font-size: 0.82rem; color: var(--text-muted);"><i class="fa-solid fa-circle-info"></i> Tip: Use objection breakers if the carrier hesitates.</div>
+        <button class="btn btn-primary" onclick="copyEntireScript()"><i class="fa-solid fa-copy"></i> Copy Full Pitch Script</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MANDATORY CALL AUDIO RECORDER MODAL -->
+  <div class="modal-overlay" id="call-recorder-modal">
+    <div class="modal-card" style="max-width: 500px;">
+      <div class="modal-header" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(17, 24, 39, 0.9));">
+        <div class="modal-title-group">
+          <div style="font-size: 0.75rem; font-weight: 700; color: var(--accent-red); text-transform: uppercase;"><i class="fa-solid fa-circle-dot pulse-red"></i> Mandatory Call Audio Recording Active</div>
+          <h2 id="recorder-carrier-name">Carrier Name</h2>
+          <span style="font-size: 0.85rem; color: var(--text-muted);" id="recorder-phone-num">(000) 000-0000</span>
+        </div>
+      </div>
+
+      <div class="modal-body" style="padding: 24px; text-align: center;">
+        <div class="recording-pulse-box">
+          <div class="rec-dot"></div>
+          <div class="rec-timer" id="rec-timer-display">00:00</div>
+          <span class="rec-sub">Live Audio Microphone Capture Active</span>
+        </div>
+
+        <div class="form-group" style="text-align: left; margin-top: 20px;">
+          <label>Call Outcome Status</label>
+          <select id="recorder-status-select" style="width: 100%; padding: 10px; border-radius: 8px; background: var(--bg-sidebar); border: 1px solid var(--border-color); color: var(--text-main);">
+            <option value="Contacted">Contacted (Spoke with carrier)</option>
+            <option value="In Discussion">In Discussion (Sending details)</option>
+            <option value="Pitch Sent">Pitch Sent (Setup packet requested)</option>
+            <option value="Onboarded">🎉 Onboarded (Signed agreement)</option>
+            <option value="Disqualified">Disqualified (Not interested / Broker)</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="text-align: left; margin-top: 12px;">
+          <label>Call Outcome Notes</label>
+          <textarea id="recorder-note-input" rows="3" style="width: 100%; padding: 10px; border-radius: 8px; background: var(--bg-sidebar); border: 1px solid var(--border-color); color: var(--text-main);" placeholder="Describe call summary, carrier reaction, target rates..."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="justify-content: center;">
+        <button class="btn btn-accent btn-lg btn-block" id="stop-save-recording-btn">
+          <i class="fa-solid fa-stop-circle"></i> End Call & Save Audio Recording
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BULK ASSIGN SALES REP MODAL -->
+  <div class="modal-overlay" id="assign-rep-modal">
+    <div class="modal-card" style="max-width: 460px;">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h2><i class="fa-solid fa-user-plus" style="color: var(--accent-blue);"></i> Assign Sales Representative</h2>
+          <p style="font-size: 0.8rem; color: var(--text-muted);">Assign selected carrier leads to a sales team member for dispatch outreach.</p>
+        </div>
+        <button class="close-modal-btn" id="close-assign-rep-btn"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <div class="form-group">
+          <label for="bulk-rep-select-input" style="display: block; margin-bottom: 6px; font-weight: 600;">Choose Sales Rep:</label>
+          <select id="bulk-rep-select-input" style="width: 100%; padding: 10px; border-radius: 8px; background: var(--bg-sidebar); border: 1px solid var(--border-color); color: var(--text-main);">
+            <option value="Alex Johnson">Alex Johnson</option>
+            <option value="Sarah Davis">Sarah Davis</option>
+            <option value="Michael Miller">Michael Miller</option>
+            <option value="David Wilson">David Wilson</option>
+            <option value="Unassigned">Unassigned (Reset Assignment)</option>
+          </select>
+        </div>
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 12px;">
+          Assigning <strong id="assign-modal-lead-count" style="color: var(--accent-cyan);">0</strong> selected lead(s). The assigned rep will see these leads under their account view.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary btn-block" id="confirm-assign-rep-btn"><i class="fa-solid fa-check"></i> Save Lead Assignment</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
