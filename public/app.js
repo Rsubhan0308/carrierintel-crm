@@ -625,6 +625,7 @@ function switchTab(tabId) {
   else if (tabId === 'directory') fetchCarriers(state.currentPage);
   else if (tabId === 'users-management') fetchUsers();
   else if (tabId === 'activity-tracker') fetchAdminActivityLogs();
+  else if (tabId === 'reminders') fetchReminders();
 }
 window.switchTab = switchTab;
 
