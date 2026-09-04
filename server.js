@@ -73,15 +73,25 @@ function getInitialUsers() {
 }
 
 function loadUsersDatabase() {
+  const defaults = getInitialUsers();
   if (fs.existsSync(USERS_FILE)) {
     try {
-      usersDatabase = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+      const existing = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+      const merged = Array.isArray(existing) ? [...existing] : [];
+      // Ensure default admin & rep accounts are present without overwriting custom created users
+      defaults.forEach(defUser => {
+        if (!merged.some(u => u.email && u.email.toLowerCase() === defUser.email.toLowerCase())) {
+          merged.push(defUser);
+        }
+      });
+      usersDatabase = merged;
+      saveUsersDatabase();
     } catch (e) {
-      usersDatabase = getInitialUsers();
+      usersDatabase = defaults;
       saveUsersDatabase();
     }
   } else {
-    usersDatabase = getInitialUsers();
+    usersDatabase = defaults;
     saveUsersDatabase();
   }
 }
