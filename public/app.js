@@ -84,6 +84,7 @@ function initAuth() {
           applyRolePermissions();
           fetchStats();
           fetchCarriers(1);
+          if (state.sessionUser && state.sessionUser.role === 'ADMIN') fetchUsers();
         } else {
           showToast(data.error || 'Login failed', 'error');
         }
@@ -138,6 +139,7 @@ async function checkAuthSession() {
       applyRolePermissions();
       fetchStats();
       fetchCarriers(1);
+      if (state.sessionUser && state.sessionUser.role === 'ADMIN') fetchUsers();
     } else {
       state.sessionToken = null;
       localStorage.removeItem('session_token');
@@ -459,7 +461,7 @@ function renderUserTable(users) {
       <td><strong>${u.assignedLeadsCount}</strong> Leads</td>
       <td><strong>${u.callsMade}</strong> Calls</td>
       <td><span class="badge badge-hot">${u.onboardedCount} Onboarded</span></td>
-      <td>
+      <td style="text-align: right;">
         ${u.role !== 'ADMIN' ? `<button class="btn btn-sm btn-outline-danger" onclick="deleteUserAccount('${u.id}')"><i class="fa-solid fa-trash-can"></i> Delete</button>` : '<span style="font-size:0.75rem; color:var(--text-muted);">Main Admin</span>'}
       </td>
     `;
