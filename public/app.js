@@ -1045,20 +1045,41 @@ function startPollingScrapeStatus(jobId) {
   if (state.scrapeInterval) clearInterval(state.scrapeInterval);
   const consoleBox = document.getElementById('terminal-console-output');
   const progressBar = document.getElementById('crawler-progress-fill');
+  const percentText = document.getElementById('crawler-percent-text');
+
+  if (consoleBox) consoleBox.innerHTML = '';
+  let lastLogIndex = 0;
 
   state.scrapeInterval = setInterval(async () => {
     try {
       const res = await fetch(`/api/scraper/status/${jobId}`);
       if (!res.ok) return;
       const job = await res.json();
-      progressBar.style.width = `${job.progress}%`;
-      if (job.status === 'COMPLETED') {
+
+      if (progressBar) progressBar.style.width = `${job.progress || 0}%`;
+      if (percentText) percentText.innerText = `${job.status}: ${job.progress || 0}% (${job.scrapedCount || 0} Extracted)`;
+
+      if (consoleBox && job.logs && job.logs.length > lastLogIndex) {
+        for (let i = lastLogIndex; i < job.logs.length; i++) {
+          const logLine = job.logs[i];
+          const div = document.createElement('div');
+          div.className = 'terminal-line';
+          if (logLine.includes('[SUCCESS]') || logLine.includes('[COMPLETE]')) div.className += ' success-line';
+          else if (logLine.includes('[INIT]') || logLine.includes('[FETCH]')) div.className += ' system-line';
+          div.textContent = logLine;
+          consoleBox.appendChild(div);
+        }
+        lastLogIndex = job.logs.length;
+        consoleBox.scrollTop = consoleBox.scrollHeight;
+      }
+
+      if (job.status === 'COMPLETED' || job.status === 'ERROR') {
         clearInterval(state.scrapeInterval);
         fetchStats();
         fetchCarriers(1);
       }
     } catch (err) {}
-  }, 1000);
+  }, 250);
 }
 
 function initCRMFilter() {}
