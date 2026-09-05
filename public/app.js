@@ -763,6 +763,9 @@ function renderCarrierTable() {
     const tr = document.createElement('tr');
     const isChecked = state.selectedCarrierIds.has(carrier.id);
 
+    const dotTag = carrier.usdot ? `<span class="id-pill">DOT ${carrier.usdot}</span>` : '';
+    const mcTag = carrier.mcNumber ? `<span class="id-pill">${carrier.mcNumber}</span>` : '';
+
     const equipList = Array.isArray(carrier.equipment) ? carrier.equipment : ['Dry Van'];
     const equipBadges = equipList.map(eq => `<span class="equipment-badge equip-dryvan">${eq}</span>`).join(' ');
 
