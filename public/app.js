@@ -25,8 +25,8 @@ const state = {
     minPowerUnits: '',
     maxPowerUnits: '',
     freshMcDays: 'ALL',
-    hasEmail: true,
-    hasPhone: true,
+    hasEmail: false,
+    hasPhone: false,
     crmStatus: 'ALL',
     assignedRep: 'ALL'
   }
@@ -918,13 +918,33 @@ function initFilterControls() {
     fetchCarriers(1);
   });
 
+  const emailCb = document.getElementById('filter-email-only');
+  const phoneCb = document.getElementById('filter-phone-only');
+
+  if (emailCb) {
+    emailCb.addEventListener('change', (e) => {
+      state.filters.hasEmail = e.target.checked;
+      fetchCarriers(1);
+    });
+  }
+  if (phoneCb) {
+    phoneCb.addEventListener('change', (e) => {
+      state.filters.hasPhone = e.target.checked;
+      fetchCarriers(1);
+    });
+  }
+
   resetBtn.addEventListener('click', () => {
     stateSel.value = 'ALL';
     equipSel.value = 'ALL';
     fleetSel.value = 'ALL';
     ageSel.value = 'ALL';
     crmSel.value = 'ALL';
-    state.filters = { q: '', state: 'ALL', equipment: 'ALL', minPowerUnits: '', maxPowerUnits: '', freshMcDays: 'ALL', hasEmail: true, hasPhone: true, crmStatus: 'ALL', assignedRep: state.sessionUser && state.sessionUser.role === 'SALES_REP' ? state.sessionUser.name : 'ALL' };
+    if (emailCb) emailCb.checked = false;
+    if (phoneCb) phoneCb.checked = false;
+    const searchInput = document.getElementById('global-search');
+    if (searchInput) searchInput.value = '';
+    state.filters = { q: '', state: 'ALL', equipment: 'ALL', minPowerUnits: '', maxPowerUnits: '', freshMcDays: 'ALL', hasEmail: false, hasPhone: false, crmStatus: 'ALL', assignedRep: state.sessionUser && state.sessionUser.role === 'SALES_REP' ? state.sessionUser.name : 'ALL' };
     fetchCarriers(1);
   });
 

@@ -517,14 +517,14 @@ app.get('/api/carriers', (req, res) => {
   if (q) {
     const queryStr = q.toString().toLowerCase().trim();
     filtered = filtered.filter(c =>
-      c.usdot.toLowerCase().includes(queryStr) ||
-      c.mcNumber.toLowerCase().includes(queryStr) ||
-      c.companyName.toLowerCase().includes(queryStr) ||
-      c.ownerName.toLowerCase().includes(queryStr) ||
-      c.city.toLowerCase().includes(queryStr) ||
-      c.state.toLowerCase().includes(queryStr) ||
-      c.email.toLowerCase().includes(queryStr) ||
-      c.phone.toLowerCase().includes(queryStr)
+      (c.usdot && c.usdot.toString().toLowerCase().includes(queryStr)) ||
+      (c.mcNumber && c.mcNumber.toString().toLowerCase().includes(queryStr)) ||
+      (c.companyName && c.companyName.toString().toLowerCase().includes(queryStr)) ||
+      (c.ownerName && c.ownerName.toString().toLowerCase().includes(queryStr)) ||
+      (c.city && c.city.toString().toLowerCase().includes(queryStr)) ||
+      (c.state && c.state.toString().toLowerCase().includes(queryStr)) ||
+      (c.email && c.email.toString().toLowerCase().includes(queryStr)) ||
+      (c.phone && c.phone.toString().toLowerCase().includes(queryStr))
     );
   }
 
