@@ -780,15 +780,22 @@ function renderCarrierTable() {
       ? `<a href="mailto:${carrier.email}" class="email-link" title="${carrier.email}"><i class="fa-solid fa-envelope"></i> ${carrier.email}</a>` 
       : `<span style="font-size:0.73rem; color:var(--text-dim);">No Email</span>`;
 
-    const mcTag = carrier.mcNumber ? `<span class="id-pill">MC ${carrier.mcNumber}</span>` : '';
-    const dotTag = carrier.usdot ? `<span class="id-pill">DOT ${carrier.usdot}</span>` : '';
+    const initials = (carrier.companyName || 'CC')
+      .split(' ')
+      .filter(w => w.length > 0)
+      .slice(0, 2)
+      .map(w => w[0].toUpperCase())
+      .join('') || 'TR';
 
     tr.innerHTML = `
       <td><input type="checkbox" class="carrier-checkbox" data-id="${carrier.id}" ${isChecked ? 'checked' : ''}></td>
       <td>
-        <div class="company-cell">
-          <span class="comp-name" title="${carrier.companyName}">${carrier.companyName}</span>
-          <div class="comp-ids">${dotTag} ${mcTag}</div>
+        <div class="company-cell-wrapper">
+          <div class="company-avatar">${initials}</div>
+          <div class="company-cell">
+            <span class="comp-name" title="${carrier.companyName}">${carrier.companyName}</span>
+            <div class="comp-ids">${dotTag} ${mcTag}</div>
+          </div>
         </div>
       </td>
       <td>
