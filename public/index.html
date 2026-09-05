@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CarrierIntel Pro - FMCSA Scraper & Dispatch Sales Lead Platform</title>
+  <title>CarrierIntel Pro - Enterprise Freight & Lead Platform</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="/styles.css?v=17.0">
+  <link rel="stylesheet" href="/styles.css?v=20.0">
 </head>
 <body>
 
@@ -28,7 +28,7 @@
           <label><i class="fa-solid fa-lock"></i> Password</label>
           <input type="password" id="login-password" placeholder="••••••••" required>
         </div>
-        <button type="submit" class="btn btn-primary btn-block btn-lg"><i class="fa-solid fa-right-to-bracket"></i> Secure Account Login</button>
+        <button type="submit" class="btn btn-primary btn-block btn-lg"><i class="fa-solid fa-right-to-bracket"></i> Account Login</button>
       </form>
     </div>
   </div>
@@ -59,12 +59,11 @@
         <a href="#fresh-mc" class="nav-item" data-tab="fresh-mc" data-tooltip="Fresh MC Radar" onclick="switchTab('fresh-mc');">
           <i class="fa-solid fa-bolt"></i>
           <span>Fresh MC Radar</span>
-          <span class="badge badge-hot" id="nav-fresh-count">0</span>
+          <span class="badge" id="nav-fresh-count">0</span>
         </a>
         <a href="#bulk-scraper" class="nav-item admin-only-element" data-tab="bulk-scraper" data-tooltip="Bulk Crawler Hub" onclick="switchTab('bulk-scraper');">
           <i class="fa-solid fa-spider"></i>
           <span>Bulk Crawler Hub</span>
-          <span class="pulse-indicator"></span>
         </a>
         <a href="#sales-crm" class="nav-item" data-tab="sales-crm" data-tooltip="Sales Team CRM" onclick="switchTab('sales-crm');">
           <i class="fa-solid fa-chart-kanban"></i>
@@ -85,7 +84,7 @@
         <a href="#reminders" class="nav-item" data-tab="reminders" data-tooltip="Scheduled Callbacks" onclick="switchTab('reminders');">
           <i class="fa-solid fa-calendar-check"></i>
           <span>Callbacks & Reminders</span>
-          <span class="badge badge-hot" id="nav-callbacks-count" style="display: none;">0</span>
+          <span class="badge" id="nav-callbacks-count" style="display: none;">0</span>
         </a>
       </nav>
 
@@ -94,7 +93,7 @@
           <div class="status-dot"></div>
           <div class="status-info">
             <span class="status-title">FMCSA Data Engine</span>
-            <span class="status-sub">Live Sync • 99.4% Verified</span>
+            <span class="status-sub">Live Sync</span>
           </div>
         </div>
       </div>
@@ -113,19 +112,19 @@
         <div class="user-profile-badge">
           <div class="user-info">
             <span class="user-name" id="user-display-name">System Admin</span>
-            <span class="user-role-tag" id="user-display-role">👑 ADMIN</span>
+            <span class="user-role-tag" id="user-display-role">ADMIN</span>
           </div>
-          <button class="btn btn-outline-danger" id="logout-btn" title="Log Out"><i class="fa-solid fa-power-off"></i> Logout</button>
+          <button class="btn btn-muted-danger" id="logout-btn" title="Log Out"><i class="fa-solid fa-power-off"></i> Logout</button>
         </div>
 
         <div class="header-actions">
-          <button class="btn btn-outline admin-only-element" id="quick-scrape-btn">
+          <button class="btn btn-primary admin-only-element" id="quick-scrape-btn">
             <i class="fa-solid fa-plus"></i> Scrape New DOT
           </button>
-          <button class="btn btn-primary" id="export-selected-btn">
+          <button class="btn btn-outline" id="export-selected-btn">
             <i class="fa-solid fa-download"></i> Export Leads (<span id="selected-count">0</span>)
           </button>
-          <button class="btn btn-outline-danger admin-only-element" id="clear-database-btn" style="border-color: rgba(239, 68, 68, 0.4); color: #ef4444;">
+          <button class="btn btn-muted-danger admin-only-element" id="clear-database-btn">
             <i class="fa-solid fa-trash-can"></i> Clear All Leads
           </button>
         </div>
@@ -134,35 +133,35 @@
       <!-- Stats Overview Banner -->
       <section class="stats-grid">
         <div class="stat-card">
-          <div class="stat-icon icon-blue"><i class="fa-solid fa-truck"></i></div>
+          <div class="stat-icon"><i class="fa-solid fa-truck"></i></div>
           <div class="stat-details">
             <span class="stat-value" id="stat-total">--</span>
             <span class="stat-label">Indexed Carriers</span>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon icon-orange"><i class="fa-solid fa-fire"></i></div>
+          <div class="stat-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
           <div class="stat-details">
             <span class="stat-value" id="stat-fresh">--</span>
             <span class="stat-label">Fresh MCs (&lt;30 Days)</span>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon icon-green"><i class="fa-solid fa-envelope-circle-check"></i></div>
+          <div class="stat-icon"><i class="fa-solid fa-envelope"></i></div>
           <div class="stat-details">
             <span class="stat-value" id="stat-emails">--</span>
             <span class="stat-label">Verified Emails</span>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon icon-purple"><i class="fa-solid fa-phone"></i></div>
+          <div class="stat-icon"><i class="fa-solid fa-phone"></i></div>
           <div class="stat-details">
             <span class="stat-value" id="stat-phones">--</span>
             <span class="stat-label">Ready Phone Numbers</span>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon icon-cyan"><i class="fa-solid fa-bullseye"></i></div>
+          <div class="stat-icon"><i class="fa-solid fa-bullseye"></i></div>
           <div class="stat-details">
             <span class="stat-value" id="stat-active">--</span>
             <span class="stat-label">Active Sales Leads</span>
