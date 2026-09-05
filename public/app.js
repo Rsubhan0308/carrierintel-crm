@@ -84,7 +84,7 @@ function initAuth() {
           applyRolePermissions();
           fetchStats();
           fetchCarriers(1);
-          if (state.sessionUser && state.sessionUser.role === 'ADMIN') fetchUsers();
+          fetchUsers();
         } else {
           showToast(data.error || 'Login failed', 'error');
         }
@@ -139,7 +139,7 @@ async function checkAuthSession() {
       applyRolePermissions();
       fetchStats();
       fetchCarriers(1);
-      if (state.sessionUser && state.sessionUser.role === 'ADMIN') fetchUsers();
+      fetchUsers();
     } else {
       state.sessionToken = null;
       localStorage.removeItem('session_token');
@@ -430,7 +430,7 @@ function initCreateUserForm() {
 }
 
 async function fetchUsers() {
-  if (!state.sessionUser || state.sessionUser.role !== 'ADMIN') return;
+  if (!state.sessionUser) return;
 
   try {
     const res = await fetch('/api/users', {
@@ -439,9 +439,55 @@ async function fetchUsers() {
     if (!res.ok) return;
 
     const users = await res.json();
-    renderUserTable(users);
+    if (state.sessionUser.role === 'ADMIN') {
+      renderUserTable(users);
+    }
+    populateRepDropdowns(users);
   } catch (err) {
     console.error('Failed to fetch users:', err);
+  }
+}
+
+function populateRepDropdowns(users) {
+  if (!users || !Array.isArray(users)) return;
+
+  const repUsers = users.filter(u => u.role === 'SALES_REP' || u.role === 'ADMIN');
+  const repNames = repUsers.map(u => u.name);
+
+  // 1. Bulk Assign Rep Dropdown (bulk-rep-select-input)
+  const bulkSelect = document.getElementById('bulk-rep-select-input');
+  if (bulkSelect) {
+    const currentVal = bulkSelect.value;
+    let html = repNames.map(name => `<option value="${name}">${name}</option>`).join('');
+    html += `<option value="Unassigned">Unassigned (Reset Assignment)</option>`;
+    bulkSelect.innerHTML = html;
+    if (repNames.includes(currentVal) || currentVal === 'Unassigned') {
+      bulkSelect.value = currentVal;
+    }
+  }
+
+  // 2. Carrier Details Modal Assigned Rep Dropdown (modal-assigned-rep-select)
+  const modalSelect = document.getElementById('modal-assigned-rep-select');
+  if (modalSelect) {
+    const currentVal = modalSelect.value;
+    let html = repNames.map(name => `<option value="${name}">${name}</option>`).join('');
+    html += `<option value="Unassigned">Unassigned</option>`;
+    modalSelect.innerHTML = html;
+    if (repNames.includes(currentVal) || currentVal === 'Unassigned') {
+      modalSelect.value = currentVal;
+    }
+  }
+
+  // 3. Activity Tracker Filter Dropdown (tracker-rep-filter)
+  const trackerSelect = document.getElementById('tracker-rep-filter');
+  if (trackerSelect) {
+    const currentVal = trackerSelect.value;
+    let html = `<option value="ALL">All Sales Reps</option>`;
+    html += repNames.map(name => `<option value="${name}">${name}</option>`).join('');
+    trackerSelect.innerHTML = html;
+    if (repNames.includes(currentVal) || currentVal === 'ALL') {
+      trackerSelect.value = currentVal;
+    }
   }
 }
 

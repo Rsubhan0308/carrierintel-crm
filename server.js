@@ -267,7 +267,7 @@ app.post('/api/auth/logout', (req, res) => {
 
 // --- ADMIN USER MANAGEMENT APIS ---
 app.get('/api/users', (req, res) => {
-  const sessionUser = requireAuth(req, res, ['ADMIN']);
+  const sessionUser = requireAuth(req, res, ['ADMIN', 'SALES_REP']);
   if (!sessionUser) return;
 
   const usersWithStats = usersDatabase.map(u => {
