@@ -837,8 +837,8 @@ body {
 }
 
 .btn-xs {
-  padding: 5px 10px;
-  font-size: 0.75rem;
+  padding: 4px 8px;
+  font-size: 0.74rem;
   border-radius: 6px;
   font-weight: 700;
   letter-spacing: 0.2px;
@@ -880,6 +880,12 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   vertical-align: middle;
   overflow: hidden;
+}
+
+.carrier-table th:last-child,
+.carrier-table td:last-child {
+  padding-left: 4px;
+  padding-right: 12px;
 }
 
 .carrier-table tbody tr {
@@ -1064,6 +1070,7 @@ body {
   align-items: center;
   justify-content: flex-end;
   white-space: nowrap;
+  width: 100%;
 }
 
 .equipment-badge {
