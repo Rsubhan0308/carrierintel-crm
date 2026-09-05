@@ -198,6 +198,7 @@ function initCallRecorderControls() {
   const minimizeFooterBtn = document.getElementById('minimize-recorder-footer-btn');
   const expandBtn = document.getElementById('expand-recorder-btn');
   const pitchBtn = document.getElementById('quick-pitch-from-call-btn');
+  const addSysAudioBtn = document.getElementById('btn-add-system-audio');
 
   if (stopSaveBtn) stopSaveBtn.addEventListener('click', stopAndSaveCallRecording);
   if (floatingEndCallBtn) floatingEndCallBtn.addEventListener('click', stopAndSaveCallRecording);
@@ -206,6 +207,7 @@ function initCallRecorderControls() {
   if (minimizeFooterBtn) minimizeFooterBtn.addEventListener('click', minimizeCallRecorderModal);
   if (expandBtn) expandBtn.addEventListener('click', expandCallRecorderModal);
   if (pitchBtn) pitchBtn.addEventListener('click', openPitchScriptFromCall);
+  if (addSysAudioBtn) addSysAudioBtn.addEventListener('click', addSystemAudioStream);
 }
 
 function minimizeCallRecorderModal() {
@@ -225,6 +227,37 @@ function openPitchScriptFromCall() {
     openScriptModal(state.activeRecordingCarrier.id);
   }
 }
+
+async function addSystemAudioStream() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+    showToast('System audio capture is not supported in this browser.', 'warning');
+    return;
+  }
+
+  try {
+    const displayStream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: { echoCancellation: false, autoGainControl: false }
+    });
+
+    const sysAudioTracks = displayStream.getAudioTracks();
+    if (sysAudioTracks.length === 0) {
+      showToast('⚠️ No audio track selected. Make sure to check "Share Audio" in the browser prompt!', 'warning');
+      return;
+    }
+
+    state.displayStream = displayStream;
+
+    if (state.recordingAudioCtx && state.recordingDestNode) {
+      const sysSourceNode = state.recordingAudioCtx.createMediaStreamSource(new MediaStream([sysAudioTracks[0]]));
+      sysSourceNode.connect(state.recordingDestNode);
+    }
+    showToast('✅ Softphone / Recipient audio stream linked successfully!', 'success');
+  } catch (err) {
+    console.log('System audio capture cancelled:', err);
+  }
+}
+window.addSystemAudioStream = addSystemAudioStream;
 
 async function startMandatoryCallRecorder(carrierId, phoneNum) {
   let carrier = state.carriers.find(c => c.id === carrierId) || state.freshCarriers.find(c => c.id === carrierId);
@@ -253,7 +286,7 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
   try {
     let recorderStream;
 
-    // Capture Microphone Stream without browser echo cancellation muting recipient speaker audio
+    // 1. Capture Microphone Stream without echo cancellation so speaker sound is captured
     const micStream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: false,
@@ -263,7 +296,18 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
     });
     state.micStream = micStream;
 
-    // Check if browser supports system/tab audio capture for softphones (Google Voice, OpenPhone, Skype, etc.)
+    // 2. Setup Web Audio API AudioContext for multi-source mixing
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const destNode = audioCtx.createMediaStreamDestination();
+    state.recordingAudioCtx = audioCtx;
+    state.recordingDestNode = destNode;
+
+    const micSourceNode = audioCtx.createMediaStreamSource(micStream);
+    micSourceNode.connect(destNode);
+
+    recorderStream = destNode.stream;
+
+    // 3. Attempt System/Tab Audio Capture for softphones (Google Voice, Skype, Phone Link, OpenPhone, WebRTC, etc.)
     if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
       try {
         const displayStream = await navigator.mediaDevices.getDisplayMedia({
@@ -273,38 +317,22 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
 
         const sysAudioTracks = displayStream.getAudioTracks();
         if (sysAudioTracks.length > 0) {
-          // Mix Mic Stream + System Audio Stream using AudioContext
-          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-          const destNode = audioCtx.createMediaStreamDestination();
-
-          const micSourceNode = audioCtx.createMediaStreamSource(micStream);
-          const sysSourceNode = audioCtx.createMediaStreamSource(new MediaStream(sysAudioTracks));
-
-          micSourceNode.connect(destNode);
+          const sysSourceNode = audioCtx.createMediaStreamSource(new MediaStream([sysAudioTracks[0]]));
           sysSourceNode.connect(destNode);
-
-          recorderStream = destNode.stream;
-          state.recordingAudioCtx = audioCtx;
           state.displayStream = displayStream;
-
-          // Stop unnecessary video screen track
-          displayStream.getVideoTracks().forEach(t => t.stop());
+          showToast('✅ Softphone / Recipient Audio Stream Linked!', 'success');
         }
       } catch (displayErr) {
-        console.log("System audio capture skipped or rejected, proceeding with un-cancelled microphone audio capture:", displayErr);
+        console.log("System audio capture skipped/dismissed, running on microphone speaker pickup mode:", displayErr);
       }
-    }
-
-    if (!recorderStream) {
-      recorderStream = micStream;
     }
 
     state.mediaRecorder = new MediaRecorder(recorderStream);
     state.mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) state.audioChunks.push(event.data);
+      if (event.data && event.data.size > 0) state.audioChunks.push(event.data);
     };
 
-    state.mediaRecorder.start();
+    state.mediaRecorder.start(1000);
 
     // Start Timer Display (Syncs Both Main Modal and Floating Bar)
     if (state.recordingTimer) clearInterval(state.recordingTimer);
@@ -381,12 +409,16 @@ async function stopAndSaveCallRecording() {
     // Clean up & stop all audio streams and context
     if (state.micStream) {
       state.micStream.getTracks().forEach(track => track.stop());
+      state.micStream = null;
     }
     if (state.displayStream) {
       state.displayStream.getTracks().forEach(track => track.stop());
+      state.displayStream = null;
     }
     if (state.recordingAudioCtx) {
       state.recordingAudioCtx.close();
+      state.recordingAudioCtx = null;
+      state.recordingDestNode = null;
     }
   };
 
