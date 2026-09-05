@@ -305,29 +305,7 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
     const micSourceNode = audioCtx.createMediaStreamSource(micStream);
     micSourceNode.connect(destNode);
 
-    recorderStream = destNode.stream;
-
-    // 3. Attempt System/Tab Audio Capture for softphones (Google Voice, Skype, Phone Link, OpenPhone, WebRTC, etc.)
-    if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
-      try {
-        const displayStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: { echoCancellation: false, autoGainControl: false }
-        });
-
-        const sysAudioTracks = displayStream.getAudioTracks();
-        if (sysAudioTracks.length > 0) {
-          const sysSourceNode = audioCtx.createMediaStreamSource(new MediaStream([sysAudioTracks[0]]));
-          sysSourceNode.connect(destNode);
-          state.displayStream = displayStream;
-          showToast('✅ Softphone / Recipient Audio Stream Linked!', 'success');
-        }
-      } catch (displayErr) {
-        console.log("System audio capture skipped/dismissed, running on microphone speaker pickup mode:", displayErr);
-      }
-    }
-
-    state.mediaRecorder = new MediaRecorder(recorderStream);
+    state.mediaRecorder = new MediaRecorder(destNode.stream);
     state.mediaRecorder.ondataavailable = (event) => {
       if (event.data && event.data.size > 0) state.audioChunks.push(event.data);
     };
