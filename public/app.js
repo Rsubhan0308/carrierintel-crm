@@ -1,3 +1,10 @@
+// Helper to format MC number without duplicate MC- or MC MC- prefixes
+function formatMC(mc) {
+  if (!mc) return '';
+  const clean = mc.toString().replace(/^MC-?/i, '').trim();
+  return clean ? `MC-${clean}` : '';
+}
+
 // Global State Management
 const state = {
   activeTab: 'directory',
@@ -764,7 +771,7 @@ function renderCarrierTable() {
     const isChecked = state.selectedCarrierIds.has(carrier.id);
 
     const dotTag = carrier.usdot ? `<span class="id-pill">DOT ${carrier.usdot}</span>` : '';
-    const mcTag = carrier.mcNumber ? `<span class="id-pill">${carrier.mcNumber}</span>` : '';
+    const mcTag = carrier.mcNumber ? `<span class="id-pill">${formatMC(carrier.mcNumber)}</span>` : '';
 
     const equipList = Array.isArray(carrier.equipment) ? carrier.equipment : ['Dry Van'];
     const equipBadges = equipList.map(eq => `<span class="equipment-badge equip-dryvan">${eq}</span>`).join(' ');
@@ -986,7 +993,7 @@ async function fetchFreshMcs() {
       card.innerHTML = `
         <span class="badge badge-hot fresh-mc-badge">⚡ ${c.authorityDaysOld}d Old</span>
         <h3 style="font-size: 1rem; margin-bottom: 4px;">${c.companyName}</h3>
-        <p style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">${c.mcNumber} • DOT: ${c.usdot}</p>
+        <p style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">${formatMC(c.mcNumber) || 'MC-N/A'} • DOT: ${c.usdot}</p>
         <div style="font-size: 0.85rem; margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px;">
           <div><i class="fa-solid fa-location-dot" style="color: var(--accent-orange);"></i> ${c.city || 'N/A'}, ${c.state || ''}</div>
           <div><i class="fa-solid fa-truck" style="color: var(--accent-blue);"></i> ${c.powerUnits} Power Units</div>
@@ -1013,11 +1020,17 @@ function initScraperForm() {
     const dotsRaw = document.getElementById('scraper-dots-input').value;
     const dotList = dotsRaw.split('\n').map(d => d.trim()).filter(d => d.length > 0);
 
+    const stateFilter = document.getElementById('scraper-state-filter') ? document.getElementById('scraper-state-filter').value : 'ALL';
+    const equipFilter = document.getElementById('scraper-equip-filter') ? document.getElementById('scraper-equip-filter').value : 'ALL';
+    const maxRecords = document.getElementById('scraper-max-records') ? document.getElementById('scraper-max-records').value : 25;
+    const skipDuplicates = document.getElementById('scraper-skip-duplicates') ? document.getElementById('scraper-skip-duplicates').checked : true;
+    const proxyEnrichment = document.getElementById('scraper-proxy-enrichment') ? document.getElementById('scraper-proxy-enrichment').checked : true;
+
     try {
       const res = await fetch('/api/scraper/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.sessionToken}` },
-        body: JSON.stringify({ dotList })
+        body: JSON.stringify({ dotList, stateFilter, equipFilter, maxRecords, skipDuplicates, proxyEnrichment })
       });
       const data = await res.json();
       showToast(`Scraper job ${data.jobId} started!`, 'success');
@@ -1197,7 +1210,7 @@ async function openCarrierModal(carrierId) {
     state.activeCarrier = c;
 
     document.getElementById('modal-company-name').innerText = c.companyName;
-    document.getElementById('modal-mc-number').innerText = c.mcNumber ? `MC-${c.mcNumber}` : 'MC-N/A';
+    document.getElementById('modal-mc-number').innerText = formatMC(c.mcNumber) || 'MC-N/A';
     document.getElementById('modal-dot-number').innerText = `DOT-${c.usdot}`;
 
     document.getElementById('modal-owner').innerText = c.ownerName || 'Unknown Owner';
@@ -1219,7 +1232,7 @@ async function openCarrierModal(carrierId) {
     document.getElementById('modal-address').innerText = addressStr;
 
     // FMCSA Specs & Authority Date
-    const mcTag = c.mcNumber ? `<span class="id-pill">MC ${c.mcNumber}</span>` : '';
+    const mcTag = c.mcNumber ? `<span class="id-pill">${formatMC(c.mcNumber)}</span>` : '';
     const dotTag = c.usdot ? `<span class="id-pill">DOT ${c.usdot}</span>` : '';
     document.getElementById('modal-fmcsa-ids').innerHTML = `${dotTag} ${mcTag}`;
     document.getElementById('modal-auth-date').innerText = c.authorityDate || 'N/A';
@@ -1540,7 +1553,7 @@ function populateEmailTemplate(templateKey, carrier) {
       body = `Hi ${ownerName},\n\nI noticed ${carrier.companyName} operates ${carrier.powerUnits || 1} Dry Van unit(s) out of ${carrier.city || 'your area'}, ${carrier.state || ''}.\n\nWe currently have premium-rate dedicated freight lanes running in your region with average rates exceeding $2.75 - $3.20/mile, zero factoring delays, and quick 24-hour pay terms.\n\nWould you have 2 minutes for a quick chat today to see if our lane volume fits your current routes?\n\nBest regards,\n${repName}\nDispatch & Freight Sales Engine\nDirect Phone: ${phone}`;
       break;
     case 'REEFER':
-      subject = `Dedicated Temperature-Controlled Reefer Freight for ${carrier.companyName} (MC #${carrier.mcNumber || carrier.usdot})`;
+      subject = `Dedicated Temperature-Controlled Reefer Freight for ${carrier.companyName} (${formatMC(carrier.mcNumber) || 'DOT ' + carrier.usdot})`;
       body = `Hello ${ownerName},\n\nOur dispatch network has immediate high-paying reefer loads originating out of ${carrier.state || 'your region'} with top-tier RPM ($3.10 - $3.80/mile).\n\nWe handle all broker negotiation, detention tracking, and paperwork setup so your drivers stay moving without sitting empty.\n\nLet's discuss your preferred origin/destination lanes this week.\n\nBest regards,\n${repName}\nReefer Dispatch Operations\nDirect Phone: ${phone}`;
       break;
     case 'FLATBED':

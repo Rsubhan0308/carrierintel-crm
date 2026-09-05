@@ -711,12 +711,12 @@ app.post('/api/scraper/start', (req, res) => {
   const sessionUser = requireAuth(req, res, ['ADMIN']);
   if (!sessionUser) return;
 
-  const { dotList, maxRecords = 10 } = req.body;
+  const { dotList, maxRecords = 25, stateFilter = 'ALL', equipFilter = 'ALL', skipDuplicates = true, proxyEnrichment = true } = req.body;
   const jobId = `JOB-${Date.now()}`;
-  let targets = (dotList && Array.isArray(dotList) && dotList.length > 0) ? dotList : Array.from({ length: parseInt(maxRecords) }, (_, i) => (3800000 + i).toString());
+  let targets = (dotList && Array.isArray(dotList) && dotList.length > 0) ? dotList : Array.from({ length: parseInt(maxRecords) }, (_, i) => (3810240 + i).toString());
 
   activeScrapeJobs[jobId] = { id: jobId, status: 'RUNNING', progress: 0, total: targets.length, scrapedCount: 0, skippedCount: 0, logs: [], results: [] };
-  res.json({ jobId, message: 'Scraper initiated', status: 'RUNNING' });
+  res.json({ jobId, message: 'Scraper initiated', status: 'RUNNING', total: targets.length });
 
   const pythonCmd = `python real_safer_scraper.py "${targets.join(',')}"`;
   exec(pythonCmd, { cwd: __dirname }, (error, stdout) => {
