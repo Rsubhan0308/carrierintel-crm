@@ -852,6 +852,7 @@ app.post('/api/scraper/start', (req, res) => {
     for (let i = 0; i < targets.length; i++) {
       const dot = targets[i];
       try {
+        await new Promise(r => setTimeout(r, 100));
         const item = await parseSaferCarrier(dot);
         const tagLabel = getTargetLabel(dot, item.usdot);
 
