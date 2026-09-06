@@ -1,7 +1,8 @@
 const fs = require('fs');
 const path = require('path');
+const { execFile } = require('child_process');
 
-// Load Verified Active Carrier Census Map
+// 1. Load Real Verified Active Carriers from Census JSON
 const VERIFIED_CARRIERS_MAP = new Map();
 
 function loadCensusDataset() {
@@ -15,7 +16,7 @@ function loadCensusDataset() {
           if (item.mcClean) VERIFIED_CARRIERS_MAP.set(String(item.mcClean), item);
           if (item.usdot) VERIFIED_CARRIERS_MAP.set(String(item.usdot), item);
         });
-        console.log(`📦 Loaded ${VERIFIED_CARRIERS_MAP.size} verified active carriers into census map.`);
+        console.log(`📦 Loaded ${VERIFIED_CARRIERS_MAP.size} real verified carriers into map.`);
       }
     }
   } catch (err) {
@@ -24,82 +25,27 @@ function loadCensusDataset() {
 }
 loadCensusDataset();
 
-// Real FMCSA Dynamic Census Generator for ANY arbitrary MC or USDOT Number
-const companyPrefixes = ['APEX', 'ALPHA', 'BLUE SKY', 'CROWN', 'DYNAMIC', 'EAGLE', 'FREEDOM', 'GOLDEN', 'HORIZON', 'IMPERIAL', 'JOURNEYS', 'LIBERTY', 'MIDWEST', 'NORTHERN', 'PACIFIC', 'PINNACLE', 'PROVIDENCE', 'ROYAL', 'SUMMIT', 'TITAN', 'VANGUARD', 'VERTEX', 'WESTERN', 'ZENITH', 'PULSE', 'UNITED', 'STAR', 'MATRIX', 'VELOCITY', 'INTEGRITY'];
-const companySuffixes = ['EXPRESS LLC', 'LOGISTICS LLC', 'TRANSPORT INC', 'FREIGHT LLC', 'TRUCKING LLC', 'CARRIERS INC', 'HAULING LLC', 'LINES INC', 'SERVICES LLC', 'TRANS CORP'];
-const states = ['TX', 'GA', 'FL', 'IL', 'CA', 'OH', 'NC', 'PA', 'TN', 'IN', 'MO', 'MI', 'NJ', 'AL', 'SC', 'WA', 'AZ', 'VA'];
-const cities = ['Dallas', 'Atlanta', 'Orlando', 'Chicago', 'Columbus', 'Charlotte', 'Nashville', 'Indianapolis', 'St. Louis', 'Detroit', 'Houston', 'Phoenix', 'Memphis', 'Cleveland', 'Seattle', 'Miami', 'Tampa'];
-
-function generateFmcsaCarrierRecord(rawInput, cleanQuery) {
-  const numVal = parseInt(cleanQuery, 10) || 1000000;
-  
-  // Inactive / Revoked filter check (simulate ~12% inactive MC records)
-  if (numVal % 8 === 0) {
-    return { target: rawInput, usdot: cleanQuery, skipped: true, reason: `MC/DOT #${rawInput} Record Inactive on SAFER` };
-  }
-  if (numVal % 23 === 0) {
-    return { target: rawInput, usdot: cleanQuery, skipped: true, reason: `MC/DOT #${rawInput} Not Authorized for Hire` };
-  }
-
-  const prefix = companyPrefixes[numVal % companyPrefixes.length];
-  const suffix = companySuffixes[(numVal * 3) % companySuffixes.length];
-  const state = states[numVal % states.length];
-  const city = cities[numVal % cities.length];
-  const legalName = `${prefix} ${suffix}`;
-
-  const usdotNum = `${4000000 + (numVal % 500000)}`;
-  const mcNum = `MC-${cleanQuery}`;
-  const phone = `(${200 + (numVal % 700)}) ${100 + (numVal % 800)}-${1000 + (numVal % 9000)}`;
-  const cleanComp = prefix.toLowerCase().replace(/\s+/g, '');
-  const email = `dispatch@${cleanComp}transport.com`;
-  const powerUnits = (numVal % 8) + 1;
-  const authorityDaysOld = (numVal % 90) + 10;
-
-  return {
-    id: `CAR-${usdotNum}`,
-    usdot: usdotNum,
-    mcNumber: mcNum,
-    companyName: legalName,
-    dbaName: '',
-    ownerName: `${prefix} Contact`,
-    address: `${city}, ${state} 75201`,
-    street: '100 Main St',
-    city,
-    state,
-    zip: '75201',
-    phone,
-    phoneType: 'Mobile / Cell',
-    email,
-    emailStatus: 'VERIFIED_DELIVERABLE',
-    website: `https://www.${cleanComp}transport.com`,
-    powerUnits,
-    drivers: powerUnits,
-    equipment: (numVal % 2 === 0) ? ['Dry Van'] : ['Dry Van', 'Reefer'],
-    operationType: 'Interstate Carrier',
-    authorityDate: new Date(Date.now() - (authorityDaysOld * 86400000)).toISOString().split('T')[0],
-    authorityDaysOld,
-    isFreshMC: authorityDaysOld <= 30,
-    authorityStatus: 'AUTHORIZED FOR HIRE',
-    safetyRating: 'SATISFACTORY',
-    oosStatus: 'NONE',
-    inspections: 0,
-    outOfServicePct: '0.0%',
-    accuracyScore: 99,
-    source: 'FMCSA Census Engine',
-    lastScraped: new Date().toISOString(),
-    crmStatus: 'New Lead',
-    assignedRep: 'Unassigned',
-    notes: [
-      {
-        date: new Date().toISOString().split('T')[0],
-        author: 'FMCSA Census Engine',
-        text: 'Verified real active motor carrier from FMCSA dataset'
+// 2. Call Real SAFER Python Scraper for 100% Authentic Live SAFER Data
+function runRealSaferPythonScraper(targetInput) {
+  return new Promise((resolve) => {
+    const pyScript = path.join(__dirname, 'real_safer_scraper.py');
+    execFile('python', [pyScript, targetInput], { timeout: 15000 }, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Python SAFER Scraper error for ${targetInput}:`, stderr || error.message);
+        return resolve({ target: targetInput, usdot: targetInput, skipped: true, reason: `MC/DOT #${targetInput} SAFER Timeout or Connection Error` });
       }
-    ],
-    starRating: 5,
-    tags: ['Fresh MC', 'Verified Active'],
-    skipped: false
-  };
+      try {
+        const parsed = JSON.parse(stdout.trim());
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return resolve(parsed[0]);
+        }
+        return resolve({ target: targetInput, usdot: targetInput, skipped: true, reason: `MC/DOT #${targetInput} Record Not Found on SAFER` });
+      } catch (e) {
+        console.error('JSON Parse error from Python SAFER:', stdout);
+        return resolve({ target: targetInput, usdot: targetInput, skipped: true, reason: `MC/DOT #${targetInput} Parse Error` });
+      }
+    });
+  });
 }
 
 async function parseSaferCarrier(targetInput) {
@@ -109,7 +55,7 @@ async function parseSaferCarrier(targetInput) {
   let cleanQuery = rawInput.replace(/^(MC|MX|FF)[\-\s]*/i, '').replace(/\D/g, '');
   if (!cleanQuery) return { target: rawInput, skipped: true, reason: 'Invalid MC/USDOT Number' };
 
-  // 1. Check Verified Pre-Indexed Map First
+  // A. Check Local Real Verified Census Dataset First
   if (VERIFIED_CARRIERS_MAP.has(cleanQuery)) {
     const cached = VERIFIED_CARRIERS_MAP.get(cleanQuery);
     return {
@@ -133,9 +79,9 @@ async function parseSaferCarrier(targetInput) {
       drivers: cached.powerUnits || 1,
       equipment: cached.equipment || ['Dry Van'],
       operationType: 'Interstate Carrier',
-      authorityDate: new Date(Date.now() - ((cached.authorityDaysOld || 45) * 86400000)).toISOString().split('T')[0],
-      authorityDaysOld: cached.authorityDaysOld || 45,
-      isFreshMC: (cached.authorityDaysOld || 45) <= 30,
+      authorityDate: cached.authorityDate || new Date().toISOString().split('T')[0],
+      authorityDaysOld: 45,
+      isFreshMC: false,
       authorityStatus: 'AUTHORIZED FOR HIRE',
       safetyRating: 'SATISFACTORY',
       oosStatus: 'NONE',
@@ -153,8 +99,8 @@ async function parseSaferCarrier(targetInput) {
     };
   }
 
-  // 2. Dynamic FMCSA Carrier Census Record Generation for ANY arbitrary MC or USDOT number
-  return generateFmcsaCarrierRecord(rawInput, cleanQuery);
+  // B. Run 100% Real Live SAFER Web Scraper
+  return await runRealSaferPythonScraper(cleanQuery);
 }
 
 module.exports = { parseSaferCarrier };
