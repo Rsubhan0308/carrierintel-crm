@@ -730,6 +730,13 @@ app.post('/api/scraper/start', (req, res) => {
 
   const maxAgeDays = ageFilter !== 'ALL' ? parseInt(ageFilter, 10) : null;
 
+  const getTargetLabel = (target, usdot) => {
+    if (target && target.toUpperCase().startsWith('MC')) return `MC #${target}`;
+    if (usdot && target && target !== usdot) return `MC #${target} (DOT #${usdot})`;
+    if (/^\d{5,7}$/.test(target)) return `MC/DOT #${target}`;
+    return `Target #${target}`;
+  };
+
   activeScrapeJobs[jobId] = {
     id: jobId,
     status: 'RUNNING',
@@ -739,7 +746,7 @@ app.post('/api/scraper/start', (req, res) => {
     skippedCount: 0,
     logs: [
       `[INIT] Starting FMCSA SAFER Engine Job #${jobId}`,
-      `[CONFIG] Targets: ${targets.length} USDOTs | State: ${stateFilter} | Equipment: ${equipFilter} | Age Filter: ${ageFilter === 'ALL' ? 'All Ages' : '<= ' + ageFilter + ' Days'} | Skip Dupes: ${skipDuplicates}`
+      `[CONFIG] Targets: ${targets.length} MC/DOT Numbers | State: ${stateFilter} | Equipment: ${equipFilter} | Age Filter: ${ageFilter === 'ALL' ? 'All Ages' : '<= ' + ageFilter + ' Days'} | Skip Dupes: ${skipDuplicates}`
     ],
     results: []
   };
@@ -748,27 +755,29 @@ app.post('/api/scraper/start', (req, res) => {
 
   // Execute Native Node.js SAFER Scraper (No Python or pip required!)
   (async () => {
-    activeScrapeJobs[jobId].logs.push(`[EXEC] Running High-Speed Native SAFER Engine across ${targets.length} USDOTs...`);
+    activeScrapeJobs[jobId].logs.push(`[EXEC] Running High-Speed Native SAFER Engine across ${targets.length} Target(s)...`);
 
     for (let i = 0; i < targets.length; i++) {
       const dot = targets[i];
       try {
         const item = await parseSaferCarrier(dot);
+        const tagLabel = getTargetLabel(dot, item.usdot);
+
         if (!item.skipped) {
           if (stateFilter !== 'ALL' && item.state !== stateFilter) {
             activeScrapeJobs[jobId].skippedCount++;
-            activeScrapeJobs[jobId].logs.push(`[SKIP] USDOT #${dot} - State mismatch (${item.state} != ${stateFilter})`);
+            activeScrapeJobs[jobId].logs.push(`[SKIP] ${tagLabel} - State mismatch (${item.state} != ${stateFilter})`);
           } else if (equipFilter !== 'ALL' && !item.equipment.includes(equipFilter)) {
             activeScrapeJobs[jobId].skippedCount++;
-            activeScrapeJobs[jobId].logs.push(`[SKIP] USDOT #${dot} - Equipment mismatch (${item.equipment.join(', ')} != ${equipFilter})`);
+            activeScrapeJobs[jobId].logs.push(`[SKIP] ${tagLabel} - Equipment mismatch (${item.equipment.join(', ')} != ${equipFilter})`);
           } else if (maxAgeDays !== null && item.authorityDaysOld > maxAgeDays) {
             activeScrapeJobs[jobId].skippedCount++;
-            activeScrapeJobs[jobId].logs.push(`[SKIP] USDOT #${dot} - Authority age mismatch (${item.authorityDaysOld}d > ${maxAgeDays}d max)`);
+            activeScrapeJobs[jobId].logs.push(`[SKIP] ${tagLabel} - Authority age mismatch (${item.authorityDaysOld}d > ${maxAgeDays}d max)`);
           } else {
             const existingIdx = carriersDatabase.findIndex(c => c.usdot === item.usdot || (c.mcNumber && c.mcNumber === item.mcNumber));
             if (existingIdx !== -1 && skipDuplicates) {
               activeScrapeJobs[jobId].skippedCount++;
-              activeScrapeJobs[jobId].logs.push(`[SKIP] USDOT #${dot} - Duplicate record in database`);
+              activeScrapeJobs[jobId].logs.push(`[SKIP] ${tagLabel} - Duplicate record in database`);
             } else {
               activeScrapeJobs[jobId].scrapedCount++;
               if (existingIdx !== -1) {
@@ -776,16 +785,16 @@ app.post('/api/scraper/start', (req, res) => {
               } else {
                 carriersDatabase.unshift(item);
               }
-              activeScrapeJobs[jobId].logs.push(`[SUCCESS] Extracted ${item.companyName} (USDOT #${item.usdot}, ${item.mcNumber}, ${item.state}, ${item.phone})`);
+              activeScrapeJobs[jobId].logs.push(`[SUCCESS] Extracted ${item.companyName} (${item.mcNumber || tagLabel}, USDOT #${item.usdot}, ${item.state}, ${item.phone})`);
             }
           }
         } else {
           activeScrapeJobs[jobId].skippedCount++;
-          activeScrapeJobs[jobId].logs.push(`[SKIP] USDOT #${dot} - ${item.reason || 'Skipped non-active carrier'}`);
+          activeScrapeJobs[jobId].logs.push(`[SKIP] ${tagLabel} - ${item.reason || 'Skipped non-active carrier'}`);
         }
       } catch (e) {
         activeScrapeJobs[jobId].skippedCount++;
-        activeScrapeJobs[jobId].logs.push(`[ERROR] USDOT #${dot} - Exception: ${e.message}`);
+        activeScrapeJobs[jobId].logs.push(`[ERROR] Target #${dot} - Exception: ${e.message}`);
       }
       activeScrapeJobs[jobId].progress = Math.round(((i + 1) / targets.length) * 100);
     }

@@ -171,16 +171,16 @@ async function parseSaferCarrier(targetInput) {
   const usdot = parsedUsdot || cleanQuery;
 
   if (entityType && !entityType.includes('CARRIER')) {
-    return { usdot, skipped: true, reason: `Skipped Non-Carrier Entity (${entityType})` };
+    return { target: rawInput, usdot, skipped: true, reason: `Skipped Non-Carrier Entity (${entityType})` };
   }
   if (statusVal && !statusVal.includes('ACTIVE')) {
-    return { usdot, skipped: true, reason: `USDOT Not Active (${statusVal})` };
+    return { target: rawInput, usdot, skipped: true, reason: `USDOT Not Active (${statusVal})` };
   }
   if (opAuth && opAuth.includes('NOT AUTHORIZED')) {
-    return { usdot, skipped: true, reason: 'Not Authorized for Hire' };
+    return { target: rawInput, usdot, skipped: true, reason: 'Not Authorized for Hire' };
   }
   if (!legalName) {
-    return { usdot, skipped: true, reason: 'No Legal Name Found in SAFER Snapshot' };
+    return { target: rawInput, usdot, skipped: true, reason: 'No Legal Name Found in SAFER Snapshot' };
   }
 
   let mcNum = '';
