@@ -720,10 +720,11 @@ app.post('/api/scraper/start', (req, res) => {
     targets = dotList.map(d => d.trim()).filter(Boolean);
   } else {
     const numToScrape = parseInt(maxRecords, 10) || 25;
-    const baseDots = ["3810236", "3810233", "3810227", "3810223", "3810219", "3810217", "3810215"];
+    const baseMcs = ["MC-1380828", "MC-1563818", "MC-1374760"];
+    const startMcNum = 1380800;
     targets = Array.from({ length: numToScrape }, (_, i) => {
-      if (i < baseDots.length) return baseDots[i];
-      return (3810200 - i).toString();
+      if (i < baseMcs.length) return baseMcs[i];
+      return `MC-${startMcNum - i}`;
     });
   }
 

@@ -5,7 +5,7 @@ const PROXY_HOST = '48.46.12.121';
 const PROXY_PORT = 5751;
 const PROXY_AUTH = 'Basic ' + Buffer.from('qosjlymz:pzqs1nimyl29').toString('base64');
 
-function fetchSaferHtml(usdot) {
+function fetchSaferHtml(queryStr, queryParam = 'USDOT') {
   return new Promise((resolve) => {
     const req = http.request({
       host: PROXY_HOST,
@@ -28,7 +28,7 @@ function fetchSaferHtml(usdot) {
 
       const saferReq = https.get({
         host: 'safer.fmcsa.dot.gov',
-        path: '/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=USDOT&query_string=' + usdot,
+        path: `/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=${queryParam}&query_string=${encodeURIComponent(queryStr)}`,
         socket: socket,
         agent: false,
         headers: {
@@ -104,15 +104,41 @@ function fetchFmcsaEmail(usdot) {
   });
 }
 
-async function parseSaferCarrier(usdot) {
-  const html = await fetchSaferHtml(usdot);
+async function parseSaferCarrier(targetInput) {
+  const rawInput = (targetInput || '').toString().trim();
+  if (!rawInput) return { usdot: rawInput, skipped: true, reason: 'Empty Target' };
+
+  let queryParam = 'USDOT';
+  let cleanQuery = rawInput;
+
+  if (/^(MC|MX|FF)/i.test(rawInput)) {
+    queryParam = 'MC_MX';
+    cleanQuery = rawInput.replace(/^(MC|MX|FF)[\-\#\s]*/i, '');
+  } else if (/^\d{5,7}$/.test(rawInput) && (rawInput.startsWith('1') || rawInput.startsWith('2') || rawInput.startsWith('0'))) {
+    queryParam = 'MC_MX';
+  }
+
+  let html = await fetchSaferHtml(cleanQuery, queryParam);
+
+  if ((!html || html.includes('Record Not Found') || html.includes('No records matching')) && queryParam === 'MC_MX') {
+    const altHtml = await fetchSaferHtml(cleanQuery, 'USDOT');
+    if (altHtml && !altHtml.includes('Record Not Found') && !altHtml.includes('No records matching')) {
+      html = altHtml;
+    }
+  } else if ((!html || html.includes('Record Not Found') || html.includes('No records matching')) && queryParam === 'USDOT') {
+    const altHtml = await fetchSaferHtml(cleanQuery, 'MC_MX');
+    if (altHtml && !altHtml.includes('Record Not Found') && !altHtml.includes('No records matching')) {
+      html = altHtml;
+    }
+  }
+
   if (!html || html.includes('Record Not Found') || html.includes('No records matching')) {
-    return { usdot, skipped: true, reason: 'USDOT Record Not Found on SAFER' };
+    return { usdot: rawInput, skipped: true, reason: `MC/DOT #${rawInput} Record Not Found on SAFER` };
   }
 
   const cleanText = (str) => str.replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ').replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
 
-  let legalName = '', dbaName = '', entityType = '', statusVal = '', opAuth = '', phone = '', phyAddr = '', mcNumRaw = '', formDateStr = '', powerUnits = 1, drivers = 1;
+  let legalName = '', dbaName = '', entityType = '', statusVal = '', opAuth = '', phone = '', phyAddr = '', mcNumRaw = '', parsedUsdot = '', formDateStr = '', powerUnits = 1, drivers = 1;
 
   const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
   let match;
@@ -132,6 +158,7 @@ async function parseSaferCarrier(usdot) {
       else if (lbl.includes('DBA Name:')) dbaName = val;
       else if (lbl.includes('USDOT Status:')) statusVal = val.toUpperCase();
       else if (lbl.includes('Operating Authority Status:')) opAuth = val.toUpperCase();
+      else if (lbl.includes('USDOT Number:')) parsedUsdot = val.replace(/\D/g, '');
       else if (lbl.includes('MCS-150 Form Date:')) formDateStr = val;
       else if (lbl.includes('Phone:')) phone = val;
       else if (lbl.includes('Physical Address:')) phyAddr = val;
@@ -140,6 +167,8 @@ async function parseSaferCarrier(usdot) {
       else if (lbl.includes('Drivers:')) drivers = parseInt(val.replace(/\D/g, ''), 10) || 1;
     }
   }
+
+  const usdot = parsedUsdot || cleanQuery;
 
   if (entityType && !entityType.includes('CARRIER')) {
     return { usdot, skipped: true, reason: `Skipped Non-Carrier Entity (${entityType})` };
