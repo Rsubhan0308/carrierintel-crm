@@ -121,6 +121,7 @@
           <button class="btn btn-primary admin-only-element" id="quick-scrape-btn">
             <i class="fa-solid fa-plus"></i> Scrape New DOT
           </button>
+          <button class="btn btn-outline admin-only-element" id="import-leads-btn" title="Import Leads from CSV, Excel, or MC List"><i class="fa-solid fa-file-import"></i> Import Leads</button>
           <button class="btn btn-outline" id="export-selected-btn">
             <i class="fa-solid fa-download"></i> Export Leads (<span id="selected-count">0</span>)
           </button>
@@ -406,7 +407,7 @@
                 </label>
               </div>
 
-              <button type="submit" class="btn btn-primary btn-block"><i class="fa-solid fa-play"></i> Start Deep Scraping Job</button>
+              <div style="display: flex; gap: 10px;"><button type="submit" id="start-scraper-submit-btn" class="btn btn-primary" style="flex: 2;"><i class="fa-solid fa-play"></i> Start Deep Scraping Job</button><button type="button" id="stop-scraper-btn" class="btn btn-muted-danger" style="display: none; flex: 1;"><i class="fa-solid fa-square"></i> Stop Scraper</button></div>
             </form>
           </div>
 
@@ -960,5 +961,33 @@
   <div id="toast-container"></div>
 
   <script src="/app.js?v=20.6"></script>
+
+  <!-- IMPORT LEADS MODAL -->
+  <div class="modal-overlay" id="import-leads-modal">
+    <div class="modal-card" style="max-width: 520px;">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h2><i class="fa-solid fa-file-import" style="color: var(--accent-cyan);"></i> Import Carrier Leads</h2>
+          <p style="font-size: 0.8rem; color: var(--text-muted);">Upload CSV file or paste MC/USDOT list directly into database.</p>
+        </div>
+        <button class="close-modal-btn" id="close-import-modal-btn"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label style="display: block; margin-bottom: 6px; font-weight: 600;">Option 1: Upload CSV / Excel File</label>
+          <input type="file" id="import-file-input" accept=".csv,.txt,.json" style="width: 100%; padding: 10px; border-radius: 8px; background: var(--bg-sidebar); border: 1px solid var(--border-color); color: var(--text-main);">
+        </div>
+
+        <div class="form-group">
+          <label style="display: block; margin-bottom: 6px; font-weight: 600;">Option 2: Or Paste MC / USDOT List (One per line)</label>
+          <textarea id="import-text-input" rows="5" style="width: 100%; padding: 10px; border-radius: 8px; background: var(--bg-sidebar); border: 1px solid var(--border-color); color: var(--text-main); font-family: var(--font-mono); font-size: 0.82rem;" placeholder="1380828&#10;MC-1563818&#10;3810215"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary btn-block" id="submit-import-btn"><i class="fa-solid fa-upload"></i> Import Leads to Database</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

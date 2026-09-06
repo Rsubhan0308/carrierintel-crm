@@ -1724,3 +1724,128 @@ async function markCallbackCompleted(carrierId) {
   } catch (err) {}
 }
 window.markCallbackCompleted = markCallbackCompleted;
+
+
+  // STOP SCRAPER BUTTON HANDLER
+  const stopScraperBtn = document.getElementById('stop-scraper-btn');
+  if (stopScraperBtn) {
+    stopScraperBtn.addEventListener('click', async () => {
+      try {
+        if (state.scrapeInterval) clearInterval(state.scrapeInterval);
+        await fetch('/api/scraper/stop', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.sessionToken}` },
+          body: JSON.stringify({ jobId: state.currentJobId || '' })
+        });
+        stopScraperBtn.style.display = 'none';
+        const percentText = document.getElementById('crawler-percent-text');
+        if (percentText) percentText.innerText = 'STOPPED';
+        showToast('Scraper job stopped!', 'info');
+        loadCarriers();
+      } catch (err) {
+        showToast('Error stopping scraper job', 'error');
+      }
+    });
+  }
+
+  // IMPORT LEADS MODAL & HANDLER
+  const importBtn = document.getElementById('import-leads-btn');
+  const importModal = document.getElementById('import-leads-modal');
+  const closeImportBtn = document.getElementById('close-import-modal-btn');
+  const submitImportBtn = document.getElementById('submit-import-btn');
+
+  if (importBtn && importModal) {
+    importBtn.addEventListener('click', () => {
+      importModal.style.display = 'flex';
+    });
+  }
+
+  if (closeImportBtn && importModal) {
+    closeImportBtn.addEventListener('click', () => {
+      importModal.style.display = 'none';
+    });
+  }
+
+  if (submitImportBtn) {
+    submitImportBtn.addEventListener('click', async () => {
+      const fileInput = document.getElementById('import-file-input');
+      const textInput = document.getElementById('import-text-input');
+      let textContent = textInput ? textInput.value : '';
+
+      const processImport = async (text) => {
+        if (!text || !text.trim()) {
+          showToast('Please upload a file or paste MC/USDOT numbers', 'warning');
+          return;
+        }
+
+        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        const leads = [];
+
+        lines.forEach((line, idx) => {
+          const cols = line.split(/,|;|\t/).map(c => c.trim().replace(/^"|"$/g, ''));
+          if (cols.length === 1) {
+            const val = cols[0];
+            const isMc = /^mc-?\d+/i.test(val);
+            const dot = val.replace(/[^0-9]/g, '');
+            if (dot) {
+              leads.push({
+                usdot: dot,
+                mcNumber: isMc ? (val.startsWith('MC-') ? val : `MC-${val}`) : `MC-${dot}`,
+                companyName: `CARRIER USDOT ${dot}`,
+                entityType: 'CARRIER',
+                state: 'TX',
+                crmStatus: 'New Lead'
+              });
+            }
+          } else {
+            const dot = cols[0].replace(/[^0-9]/g, '') || `8${Math.floor(10000 + Math.random() * 90000)}`;
+            const companyName = cols[1] || cols[0] || `IMPORTED CARRIER ${idx + 1}`;
+            const mcNumber = cols[2] || `MC-${Math.floor(100000 + Math.random() * 900000)}`;
+            const phone = cols[3] || cols[4] || '';
+            const email = cols[4] || cols[5] || '';
+            const stateVal = cols[5] || cols[6] || 'TX';
+
+            leads.push({
+              usdot: dot,
+              companyName,
+              mcNumber,
+              entityType: 'CARRIER',
+              phone,
+              email,
+              state: stateVal.substring(0, 2).toUpperCase(),
+              crmStatus: 'New Lead'
+            });
+          }
+        });
+
+        if (leads.length === 0) {
+          showToast('No valid carrier numbers found', 'warning');
+          return;
+        }
+
+        try {
+          const res = await fetch('/api/database/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.sessionToken}` },
+            body: JSON.stringify({ leads })
+          });
+          const data = await res.json();
+          showToast(data.message || `Imported ${leads.length} leads!`, 'success');
+          if (importModal) importModal.style.display = 'none';
+          if (textInput) textInput.value = '';
+          if (fileInput) fileInput.value = '';
+          loadCarriers();
+        } catch (err) {
+          showToast('Error importing leads', 'error');
+        }
+      };
+
+      if (fileInput && fileInput.files && fileInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => processImport(e.target.result);
+        reader.readAsText(fileInput.files[0]);
+      } else {
+        processImport(textContent);
+      }
+    });
+  }

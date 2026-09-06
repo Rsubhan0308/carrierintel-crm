@@ -694,6 +694,78 @@ app.post('/api/carriers/bulk-assign', (req, res) => {
   res.json({ message: `Successfully assigned ${updatedCount} carrier lead(s) to ${assignedRep}.`, count: updatedCount });
 });
 
+
+app.post('/api/scraper/stop', (req, res) => {
+  const sessionUser = requireAuth(req, res, ['ADMIN']);
+  if (!sessionUser) return;
+
+  const { jobId } = req.body || {};
+  if (jobId && activeScrapeJobs[jobId]) {
+    activeScrapeJobs[jobId].status = 'STOPPED';
+    activeScrapeJobs[jobId].logs.push('[STOP] Scraper Job stopped by admin user.');
+  }
+
+  // Also stop any running jobs
+  Object.keys(activeScrapeJobs).forEach(id => {
+    if (activeScrapeJobs[id].status === 'RUNNING') {
+      activeScrapeJobs[id].status = 'STOPPED';
+      activeScrapeJobs[id].logs.push('[STOP] Scraper Job halted by admin user.');
+    }
+  });
+
+  res.json({ message: 'Scraper job stopped successfully.' });
+});
+
+
+app.post('/api/database/import', (req, res) => {
+  const sessionUser = requireAuth(req, res, ['ADMIN']);
+  if (!sessionUser) return;
+
+  const { leads = [] } = req.body;
+  if (!Array.isArray(leads) || leads.length === 0) {
+    return res.status(400).json({ error: 'No leads provided for import' });
+  }
+
+  let importedCount = 0;
+  const existingDots = new Set(carriersDatabase.map(c => c.usdot || c.dotNumber));
+
+  leads.forEach((l, i) => {
+    const dot = String(l.usdot || l.dotNumber || `IMP-${Date.now()}-${i}`);
+    if (!existingDots.has(dot)) {
+      existingDots.add(dot);
+      const record = {
+        id: l.id || `CARRIER-${dot}`,
+        companyName: l.companyName || l.legalName || `CARRIER USDOT ${dot}`,
+        usdot: dot,
+        mcNumber: l.mcNumber || `MC-${Math.floor(100000 + Math.random() * 900000)}`,
+        entityType: l.entityType || 'CARRIER',
+        operatingStatus: l.operatingStatus || 'AUTHORIZED FOR HIRE',
+        street: l.street || l.phyStreet || '',
+        city: l.city || l.phyCity || 'Dallas',
+        state: (l.state || l.phyState || 'TX').toUpperCase(),
+        zip: l.zip || l.phyZip || '',
+        phone: l.phone || '',
+        email: l.email || '',
+        powerUnits: parseInt(l.powerUnits || '1', 10),
+        drivers: parseInt(l.drivers || '1', 10),
+        equipment: Array.isArray(l.equipment) ? l.equipment : [l.equipmentType || 'Dry Van'],
+        safetyRating: l.safetyRating || 'SATISFACTORY',
+        crmStatus: l.crmStatus || l.callStatus || 'New Lead',
+        assignedRep: 'Unassigned',
+        notes: [],
+        scrapedAt: new Date().toISOString(),
+        source: 'CSV Import'
+      };
+      carriersDatabase.unshift(record);
+      importedCount++;
+    }
+  });
+
+  saveDatabase();
+  logActivity('DB_IMPORT', sessionUser, { noteText: `Imported ${importedCount} carrier lead(s)` });
+  res.json({ message: `Successfully imported ${importedCount} carrier lead(s).`, importedCount, total: carriersDatabase.length });
+});
+
 app.post('/api/database/clear', (req, res) => {
   const sessionUser = requireAuth(req, res, ['ADMIN']);
   if (!sessionUser) return;
