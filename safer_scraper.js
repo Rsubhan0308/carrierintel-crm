@@ -182,54 +182,13 @@ async function parseSaferCarrier(targetInput) {
     return { target: rawInput, usdot, skipped: true, reason: 'Not Authorized for Hire' };
   }
   if (!legalName) {
-    // Generate active carrier fallback when SAFER is rate-limited or blocks IP
-    const mcClean = (cleanQuery || rawInput || '').toString().replace(/\D/g, '') || '1380500';
-    const numSeed = parseInt(mcClean.slice(-5) || '12345', 10);
-    const prefixes = ['ALPHA', 'APEX', 'BLUE SKY', 'CROWN', 'DYNAMIC', 'EAGLE', 'FREEDOM', 'GOLDEN', 'HORIZON', 'IMPERIAL', 'LIBERTY', 'MIDWEST', 'NORTHERN', 'PACIFIC', 'PINNACLE', 'ROYAL', 'SUMMIT', 'TITAN', 'VANGUARD', 'VERTEX', 'WESTERN', 'ZENITH', 'PULSE', 'UNITED'];
-    const suffixes = ['EXPRESS', 'LOGISTICS', 'TRANSPORT', 'FREIGHT', 'TRUCKING', 'CARRIERS', 'HAULING', 'LINES', 'SERVICES', 'TRANS'];
-    
-    const prefix = prefixes[numSeed % prefixes.length];
-    const suffix = suffixes[(numSeed * 3) % suffixes.length];
-    const generatedName = `${prefix} ${suffix} LLC`;
-
-    const states = ['TX', 'GA', 'FL', 'IL', 'CA', 'OH', 'NC', 'PA', 'TN', 'IN', 'MO', 'MI', 'NJ', 'AL', 'SC'];
-    const cities = ['Dallas', 'Atlanta', 'Orlando', 'Chicago', 'Columbus', 'Charlotte', 'Nashville', 'Indianapolis', 'St. Louis', 'Detroit'];
-    const state = states[numSeed % states.length];
-    const city = cities[numSeed % cities.length];
-
-    const isReefer = numSeed % 3 === 0;
-    const isFlatbed = numSeed % 5 === 0;
-    const equipment = isReefer ? ['Dry Van', 'Reefer'] : (isFlatbed ? ['Flatbed'] : ['Dry Van']);
-
-    const units = (numSeed % 6) + 1;
-    const daysOld = (numSeed % 85) + 15;
-    const usdotId = parsedUsdot || `38${mcClean.padStart(5, '0')}`;
-
-    return {
-      usdot: usdotId,
-      mcNumber: `MC-${mcClean}`,
-      companyName: generatedName,
-      ownerName: `${prefix} Contact`,
-      entityType: 'CARRIER',
-      operatingStatus: 'AUTHORIZED FOR HIRE',
-      street: '100 Logistics Way',
-      city: city,
-      state: state,
-      zip: '75201',
-      phone: `(${200 + (numSeed % 700)}) ${100 + (numSeed % 800)}-${1000 + (numSeed % 9000)}`,
-      email: `dispatch@${prefix.toLowerCase().replace(/\s+/g, '')}transport.com`,
-      powerUnits: units,
-      drivers: units,
-      equipment: equipment,
-      safetyRating: 'SATISFACTORY',
-      crmStatus: 'New Lead',
-      assignedRep: 'Unassigned',
-      authorityGrantDate: new Date(Date.now() - (daysOld * 86400000)).toISOString().split('T')[0],
-      authorityDaysOld: daysOld,
-      notes: [],
-      scrapedAt: new Date().toISOString(),
-      source: 'FMCSA Live Sync'
-    };
+    if (html && (html.includes('Record Inactive') || html.includes('INACTIVE'))) {
+      return { target: rawInput, usdot, skipped: true, reason: 'Record Inactive on SAFER' };
+    }
+    if (html && html.includes('NOT AUTHORIZED')) {
+      return { target: rawInput, usdot, skipped: true, reason: 'Not Authorized for Hire' };
+    }
+    return { target: rawInput, usdot, skipped: true, reason: 'No Active Carrier Record Found in SAFER Snapshot' };
   }
 
   let mcNum = '';
@@ -256,9 +215,21 @@ async function parseSaferCarrier(targetInput) {
   let city = 'Atlanta', state = 'GA', zipCode = '30301';
   const cszMatch = cszClean.match(/^(.*?),\s*([A-Z]{2})\s+([\d\-]+)$/);
   if (cszMatch) {
-    city = cszMatch[1].trim();
+    let rawCity = cszMatch[1].trim();
     state = cszMatch[2].trim();
     zipCode = cszMatch[3].trim();
+    
+    // If street address and city were combined on single line
+    if (!streetAddr && rawCity.match(/\d+\s+/)) {
+      const parts = rawCity.split(/\s+/);
+      city = parts.pop();
+      streetAddr = parts.join(' ');
+    } else if (rawCity.match(/\d+\s+/)) {
+      const parts = rawCity.split(/\s+/);
+      city = parts.pop();
+    } else {
+      city = rawCity;
+    }
   }
 
   const fullAddr = streetAddr ? `${streetAddr}, ${city}, ${state} ${zipCode}` : `${city}, ${state} ${zipCode}`;
