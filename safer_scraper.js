@@ -197,14 +197,22 @@ async function parseSaferCarrier(usdot) {
   }
 
   let equipment = ["Dry Van"];
-  const lowerName = legalName.toLowerCase();
-  if (lowerName.includes("reefer") || lowerName.includes("cold") || lowerName.includes("frozen")) {
+  const lowerName = (legalName + " " + dbaName).toLowerCase();
+  if (lowerName.includes("reefer") || lowerName.includes("cold") || lowerName.includes("frozen") || lowerName.includes("chilled")) {
     equipment = ["Reefer"];
-  } else if (lowerName.includes("flatbed") || lowerName.includes("heavy") || lowerName.includes("metal")) {
-    equipment = ["Flatbed"];
-  } else if (lowerName.includes("auto") || lowerName.includes("hauler") || lowerName.includes("car")) {
+  } else if (lowerName.includes("auto") || lowerName.includes("car hauler") || lowerName.includes("car carrier") || lowerName.includes("vehicle") || lowerName.includes("towing")) {
     equipment = ["Auto Hauler"];
-  } else if (powerUnits >= 5) {
+  } else if (lowerName.includes("box truck") || lowerName.includes("box ") || lowerName.includes("expedit") || lowerName.includes("courier") || lowerName.includes("moving")) {
+    equipment = ["Box Truck"];
+  } else if (lowerName.includes("hotshot") || lowerName.includes("hot shot")) {
+    equipment = ["Hotshot"];
+  } else if (lowerName.includes("tank") || lowerName.includes("liquid") || lowerName.includes("fuel") || lowerName.includes("oil")) {
+    equipment = ["Tanker"];
+  } else if (lowerName.includes("step") || lowerName.includes("lowboy")) {
+    equipment = ["Step Deck"];
+  } else if (lowerName.includes("flatbed") || lowerName.includes("heavy") || lowerName.includes("metal") || lowerName.includes("steel")) {
+    equipment = ["Flatbed"];
+  } else if (powerUnits >= 5 && equipment[0] === "Dry Van") {
     equipment = ["Dry Van", "Reefer"];
   }
 

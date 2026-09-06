@@ -1249,8 +1249,7 @@ async function openCarrierModal(carrierId) {
     document.getElementById('modal-website').innerHTML = c.website ? `<a href="${c.website.startsWith('http') ? c.website : 'https://' + c.website}" target="_blank" class="email-link"><i class="fa-solid fa-globe"></i> ${c.website}</a>` : '<span style="color:var(--text-muted);">No Website Recorded</span>';
     
     // Physical Address Format
-    const addressParts = [c.address, c.city, c.state, c.zip].filter(Boolean);
-    const addressStr = addressParts.length > 0 ? addressParts.join(', ') : `${c.city || ''}, ${c.state || ''} ${c.zip || ''}`.trim() || 'Location N/A';
+    const addressStr = c.address || [c.city, c.state, c.zip].filter(Boolean).join(', ') || 'Location N/A';
     document.getElementById('modal-address').innerText = addressStr;
 
     // FMCSA Specs & Authority Date
