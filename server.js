@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const { parseSaferCarrier } = require('./safer_scraper');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -742,43 +743,26 @@ app.post('/api/scraper/start', (req, res) => {
 
   res.json({ jobId, message: 'Scraper initiated', status: 'RUNNING', total: targets.length });
 
-  // Execute real_safer_scraper.py Python script
-  const targetStr = targets.join(',');
-  const pythonExec = process.platform === 'win32' ? 'python' : 'python3';
-  const pythonCmd = `${pythonExec} real_safer_scraper.py "${targetStr}"`;
+  // Execute Native Node.js SAFER Scraper (No Python or pip required!)
+  (async () => {
+    activeScrapeJobs[jobId].logs.push(`[EXEC] Running High-Speed Native SAFER Engine across ${targets.length} USDOTs...`);
 
-  activeScrapeJobs[jobId].logs.push(`[EXEC] Running SAFER Python Scraper: ${pythonCmd}`);
-
-  exec(pythonCmd, { cwd: __dirname }, (error, stdout, stderr) => {
-    if (error) {
-      activeScrapeJobs[jobId].logs.push(`[ERROR] Python scraper execution failed: ${error.message}`);
-    }
-
-    try {
-      let parsedResults = [];
-      if (stdout && stdout.trim().startsWith('[')) {
-        parsedResults = JSON.parse(stdout);
-      } else if (stdout && stdout.trim()) {
-        activeScrapeJobs[jobId].logs.push(`[WARN] Scraper raw output: ${stdout.substring(0, 200)}`);
-      }
-
-      if (!parsedResults || parsedResults.length === 0) {
-        activeScrapeJobs[jobId].logs.push(`[INFO] No valid active carriers extracted for targets.`);
-      }
-
-      parsedResults.forEach((item, idx) => {
+    for (let i = 0; i < targets.length; i++) {
+      const dot = targets[i];
+      try {
+        const item = await parseSaferCarrier(dot);
         if (!item.skipped) {
           if (stateFilter !== 'ALL' && item.state !== stateFilter) {
             activeScrapeJobs[jobId].skippedCount++;
-            activeScrapeJobs[jobId].logs.push(`[SKIP] USDOT #${item.usdot} - State mismatch (${item.state} != ${stateFilter})`);
+            activeScrapeJobs[jobId].logs.push(`[SKIP] USDOT #${dot} - State mismatch (${item.state} != ${stateFilter})`);
           } else if (equipFilter !== 'ALL' && !item.equipment.includes(equipFilter)) {
             activeScrapeJobs[jobId].skippedCount++;
-            activeScrapeJobs[jobId].logs.push(`[SKIP] USDOT #${item.usdot} - Equipment mismatch (${item.equipment.join(', ')} != ${equipFilter})`);
+            activeScrapeJobs[jobId].logs.push(`[SKIP] USDOT #${dot} - Equipment mismatch (${item.equipment.join(', ')} != ${equipFilter})`);
           } else {
             const existingIdx = carriersDatabase.findIndex(c => c.usdot === item.usdot || (c.mcNumber && c.mcNumber === item.mcNumber));
             if (existingIdx !== -1 && skipDuplicates) {
               activeScrapeJobs[jobId].skippedCount++;
-              activeScrapeJobs[jobId].logs.push(`[SKIP] USDOT #${item.usdot} - Duplicate record in database`);
+              activeScrapeJobs[jobId].logs.push(`[SKIP] USDOT #${dot} - Duplicate record in database`);
             } else {
               activeScrapeJobs[jobId].scrapedCount++;
               if (existingIdx !== -1) {
@@ -791,20 +775,20 @@ app.post('/api/scraper/start', (req, res) => {
           }
         } else {
           activeScrapeJobs[jobId].skippedCount++;
-          activeScrapeJobs[jobId].logs.push(`[SKIP] USDOT #${item.usdot} - ${item.reason || 'Skipped non-active carrier'}`);
+          activeScrapeJobs[jobId].logs.push(`[SKIP] USDOT #${dot} - ${item.reason || 'Skipped non-active carrier'}`);
         }
-        activeScrapeJobs[jobId].progress = Math.round(((idx + 1) / parsedResults.length) * 100);
-      });
-
-      activeScrapeJobs[jobId].progress = 100;
-      activeScrapeJobs[jobId].status = 'COMPLETED';
-      activeScrapeJobs[jobId].logs.push(`[COMPLETE] Scraper Job #${jobId} Finished! Total Extracted: ${activeScrapeJobs[jobId].scrapedCount}, Skipped: ${activeScrapeJobs[jobId].skippedCount}`);
-      saveDatabase();
-    } catch (e) {
-      activeScrapeJobs[jobId].status = 'ERROR';
-      activeScrapeJobs[jobId].logs.push(`[ERROR] Failed to process scraper results: ${e.message}`);
+      } catch (e) {
+        activeScrapeJobs[jobId].skippedCount++;
+        activeScrapeJobs[jobId].logs.push(`[ERROR] USDOT #${dot} - Exception: ${e.message}`);
+      }
+      activeScrapeJobs[jobId].progress = Math.round(((i + 1) / targets.length) * 100);
     }
-  });
+
+    activeScrapeJobs[jobId].progress = 100;
+    activeScrapeJobs[jobId].status = 'COMPLETED';
+    activeScrapeJobs[jobId].logs.push(`[COMPLETE] Scraper Job #${jobId} Finished! Total Extracted: ${activeScrapeJobs[jobId].scrapedCount}, Skipped: ${activeScrapeJobs[jobId].skippedCount}`);
+    saveDatabase();
+  })();
 });
 
 app.get('/api/scraper/status/:jobId', (req, res) => res.json(activeScrapeJobs[req.params.jobId] || { status: 'NOT_FOUND' }));
