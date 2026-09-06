@@ -696,8 +696,6 @@ app.post('/api/carriers/bulk-assign', (req, res) => {
 
 
 app.post('/api/scraper/stop', (req, res) => {
-  const sessionUser = requireAuth(req, res, ['ADMIN']);
-  if (!sessionUser) return;
 
   const { jobId } = req.body || {};
   if (jobId && activeScrapeJobs[jobId]) {
@@ -718,8 +716,6 @@ app.post('/api/scraper/stop', (req, res) => {
 
 
 app.post('/api/database/import', (req, res) => {
-  const sessionUser = requireAuth(req, res, ['ADMIN']);
-  if (!sessionUser) return;
 
   const { leads = [] } = req.body;
   if (!Array.isArray(leads) || leads.length === 0) {

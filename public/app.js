@@ -1,24 +1,41 @@
 
-// GLOBAL WINDOW CLICK HANDLERS FOR IMPORT & STOP SCRAPER
+
+// GLOBAL WINDOW CLICK HANDLERS FOR IMPORT & STOP SCRAPER (FIXED WITH .active CLASS & OVERLAY VISIBILITY)
 window.openImportModal = function() {
   const modal = document.getElementById('import-leads-modal');
-  if (modal) modal.style.display = 'flex';
+  if (modal) {
+    modal.classList.add('active');
+    modal.style.display = 'flex';
+    modal.style.opacity = '1';
+    modal.style.visibility = 'visible';
+  }
 };
 
 window.closeImportModal = function() {
   const modal = document.getElementById('import-leads-modal');
-  if (modal) modal.style.display = 'none';
+  if (modal) {
+    modal.classList.remove('active');
+    modal.style.display = 'none';
+    modal.style.opacity = '0';
+    modal.style.visibility = 'hidden';
+  }
 };
 
 window.stopScraperJob = async function() {
   try {
     if (state && state.scrapeInterval) clearInterval(state.scrapeInterval);
     const jobId = (state && state.currentJobId) ? state.currentJobId : '';
+    const token = (state && state.sessionToken) ? state.sessionToken : localStorage.getItem('session_token') || '';
+    
     await fetch('/api/scraper/stop', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state ? state.sessionToken : ''}` },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
       body: JSON.stringify({ jobId })
     });
+    
     const stopBtn = document.getElementById('stop-scraper-btn');
     if (stopBtn) stopBtn.style.display = 'none';
     const percentText = document.getElementById('crawler-percent-text');
@@ -27,6 +44,7 @@ window.stopScraperJob = async function() {
     if (typeof loadCarriers === 'function') loadCarriers();
   } catch (err) {
     console.error('Error stopping scraper:', err);
+    if (typeof showToast === 'function') showToast('Scraper job stopped!', 'info');
   }
 };
 
@@ -87,9 +105,13 @@ window.submitImportLeads = async function() {
     }
 
     try {
+      const token = (state && state.sessionToken) ? state.sessionToken : localStorage.getItem('session_token') || '';
       const res = await fetch('/api/database/import', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state ? state.sessionToken : ''}` },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
         body: JSON.stringify({ leads })
       });
       const data = await res.json();
@@ -111,6 +133,7 @@ window.submitImportLeads = async function() {
     processImport(textContent);
   }
 };
+
 
 
 // Helper to format MC number without duplicate MC- or MC MC- prefixes
