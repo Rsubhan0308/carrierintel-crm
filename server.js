@@ -716,16 +716,16 @@ app.post('/api/scraper/stop', (req, res) => {
 });
 
 
+
 app.post('/api/database/import', (req, res) => {
   const sessionUser = getSessionUser(req);
-
   const { leads = [] } = req.body;
   if (!Array.isArray(leads) || leads.length === 0) {
     return res.status(400).json({ error: 'No leads provided for import' });
   }
 
   let importedCount = 0;
-  const existingDots = new Set(carriersDatabase.map(c => c.usdot || c.dotNumber));
+  const existingDots = new Set(carriersDatabase.map(c => String(c.usdot || c.dotNumber)));
 
   leads.forEach((l, i) => {
     const dot = String(l.usdot || l.dotNumber || `IMP-${Date.now()}-${i}`);
@@ -738,18 +738,21 @@ app.post('/api/database/import', (req, res) => {
         mcNumber: l.mcNumber || `MC-${Math.floor(100000 + Math.random() * 900000)}`,
         entityType: l.entityType || 'CARRIER',
         operatingStatus: l.operatingStatus || 'AUTHORIZED FOR HIRE',
+        contactPerson: l.ownerName || l.contactPerson || '',
         street: l.street || l.phyStreet || '',
-        city: l.city || l.phyCity || 'Dallas',
+        city: l.city || l.phyCity || '',
         state: (l.state || l.phyState || 'TX').toUpperCase(),
         zip: l.zip || l.phyZip || '',
         phone: l.phone || '',
         email: l.email || '',
         powerUnits: parseInt(l.powerUnits || '1', 10),
-        drivers: parseInt(l.drivers || '1', 10),
+        drivers: parseInt(l.drivers || l.powerUnits || '1', 10),
         equipment: Array.isArray(l.equipment) ? l.equipment : [l.equipmentType || 'Dry Van'],
         safetyRating: l.safetyRating || 'SATISFACTORY',
         crmStatus: l.crmStatus || l.callStatus || 'New Lead',
-        assignedRep: 'Unassigned',
+        assignedRep: l.assignedRep || 'Unassigned',
+        authorityGrantDate: l.authorityGrantDate || new Date().toISOString().split('T')[0],
+        authorityDaysOld: l.authorityDaysOld !== undefined ? l.authorityDaysOld : 120,
         notes: [],
         scrapedAt: new Date().toISOString(),
         source: 'CSV Import'
@@ -763,6 +766,7 @@ app.post('/api/database/import', (req, res) => {
   logActivity('DB_IMPORT', sessionUser, { noteText: `Imported ${importedCount} carrier lead(s)` });
   res.json({ message: `Successfully imported ${importedCount} carrier lead(s).`, importedCount, total: carriersDatabase.length });
 });
+
 
 app.post('/api/database/clear', (req, res) => {
   const sessionUser = requireAuth(req, res, ['ADMIN']);

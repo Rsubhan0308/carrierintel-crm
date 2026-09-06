@@ -48,23 +48,70 @@ window.stopScraperJob = async function() {
   }
 };
 
+
 window.submitImportLeads = async function() {
   const fileInput = document.getElementById('import-file-input');
   const textInput = document.getElementById('import-text-input');
   const textContent = textInput ? textInput.value : '';
 
-  const processImport = async (text) => {
-    if (!text || !text.trim()) {
-      if (typeof showToast === 'function') showToast('Please upload a file or paste MC/USDOT numbers', 'warning');
-      return;
+  const parseCsvSmart = (text) => {
+    if (!text || !text.trim()) return [];
+
+    // Split CSV lines taking into account quoted newlines
+    const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (rawLines.length === 0) return [];
+
+    // Helper to split CSV row handling quoted fields
+    const parseRow = (rowStr) => {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < rowStr.length; i++) {
+        const char = rowStr[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(current.trim().replace(/^"|"$/g, ''));
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim().replace(/^"|"$/g, ''));
+      return result;
+    };
+
+    const firstRowCols = parseRow(rawLines[0]).map(c => c.toLowerCase());
+    const hasHeader = firstRowCols.some(c => c.includes('usdot') || c.includes('mc') || c.includes('company') || c.includes('phone') || c.includes('name'));
+
+    // Header index map
+    const headerMap = {};
+    if (hasHeader) {
+      firstRowCols.forEach((col, idx) => {
+        if (col.includes('usdot') || col.includes('dot')) headerMap.usdot = idx;
+        else if (col.includes('mc') || col.includes('docket')) headerMap.mcNumber = idx;
+        else if (col.includes('company') || col.includes('legal') || col.includes('name') && !col.includes('owner') && !col.includes('rep')) headerMap.companyName = idx;
+        else if (col.includes('owner') || col.includes('contact')) headerMap.ownerName = idx;
+        else if (col.includes('phone') || col.includes('tel')) headerMap.phone = idx;
+        else if (col.includes('email') || col.includes('mail')) headerMap.email = idx;
+        else if (col.includes('power') || col.includes('unit') || col.includes('fleet') || col.includes('truck')) headerMap.powerUnits = idx;
+        else if (col.includes('equip') || col.includes('trailer')) headerMap.equipment = idx;
+        else if (col.includes('city') || col.includes('address') || col.includes('street')) headerMap.city = idx;
+        else if (col.includes('state')) headerMap.state = idx;
+        else if (col.includes('status') || col.includes('crm')) headerMap.crmStatus = idx;
+        else if (col.includes('rep') || col.includes('assigned')) headerMap.assignedRep = idx;
+        else if (col.includes('date') || col.includes('grant') || col.includes('authority')) headerMap.authorityDate = idx;
+      });
     }
 
-    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const dataLines = hasHeader ? rawLines.slice(1) : rawLines;
     const leads = [];
 
-    lines.forEach((line, idx) => {
-      const cols = line.split(/,|;|\t/).map(c => c.trim().replace(/^"|"$/g, ''));
-      if (cols.length === 1) {
+    dataLines.forEach((lineStr, idx) => {
+      const cols = parseRow(lineStr);
+      if (cols.length === 0) return;
+
+      if (cols.length === 1 && !hasHeader) {
         const val = cols[0];
         const isMc = /^mc-?\d+/i.test(val);
         const dot = val.replace(/[^0-9]/g, '');
@@ -79,28 +126,67 @@ window.submitImportLeads = async function() {
           });
         }
       } else {
-        const dot = cols[0].replace(/[^0-9]/g, '') || `8${Math.floor(10000 + Math.random() * 90000)}`;
-        const companyName = cols[1] || cols[0] || `IMPORTED CARRIER ${idx + 1}`;
-        const mcNumber = cols[2] || `MC-${Math.floor(100000 + Math.random() * 900000)}`;
-        const phone = cols[3] || cols[4] || '';
-        const email = cols[4] || cols[5] || '';
-        const stateVal = cols[5] || cols[6] || 'TX';
+        const getValue = (key, fallbackIdx, defaultVal = '') => {
+          if (headerMap[key] !== undefined && cols[headerMap[key]] !== undefined) {
+            return cols[headerMap[key]];
+          }
+          return cols[fallbackIdx] || defaultVal;
+        };
+
+        const rawDot = getValue('usdot', 0);
+        const dot = rawDot.replace(/[^0-9]/g, '') || `38${Math.floor(10000 + Math.random() * 90000)}`;
+
+        let rawMc = getValue('mcNumber', 1);
+        if (!rawMc || rawMc.length < 3) rawMc = `MC-${Math.floor(100000 + Math.random() * 900000)}`;
+        else if (!rawMc.toUpperCase().startsWith('MC')) rawMc = `MC-${rawMc}`;
+
+        const companyName = getValue('companyName', 2) || `CARRIER ENTERPRISE ${dot}`;
+        const ownerName = getValue('ownerName', 3) || '';
+        const phone = getValue('phone', 4) || '';
+        const email = getValue('email', 5) || '';
+        const powerUnits = parseInt(getValue('powerUnits', 6, '1').replace(/[^0-9]/g, '') || '1', 10);
+        const equipmentStr = getValue('equipment', 7, 'Dry Van');
+        const city = getValue('city', 8, '');
+        const stateVal = getValue('state', 9, 'TX').substring(0, 2).toUpperCase();
+        const crmStatus = getValue('crmStatus', 10, 'New Lead');
+        const assignedRep = getValue('assignedRep', 11, 'Unassigned');
+        const authorityDate = getValue('authorityDate', 12, '');
+
+        let authorityDaysOld = 120;
+        if (authorityDate) {
+          const parsedDt = new Date(authorityDate);
+          if (!isNaN(parsedDt.getTime())) {
+            authorityDaysOld = Math.max(0, Math.floor((new Date() - parsedDt) / (1000 * 60 * 60 * 24)));
+          }
+        }
 
         leads.push({
           usdot: dot,
-          companyName,
-          mcNumber,
-          entityType: 'CARRIER',
-          phone,
-          email,
-          state: stateVal.substring(0, 2).toUpperCase(),
-          crmStatus: 'New Lead'
+          mcNumber: rawMc,
+          companyName: companyName,
+          ownerName: ownerName,
+          phone: phone,
+          email: email,
+          powerUnits: powerUnits,
+          drivers: powerUnits,
+          equipment: equipmentStr.includes('/') ? equipmentStr.split('/').map(s => s.trim()) : [equipmentStr],
+          city: city,
+          state: stateVal,
+          crmStatus: crmStatus,
+          assignedRep: assignedRep,
+          authorityGrantDate: authorityDate || new Date().toISOString().split('T')[0],
+          authorityDaysOld: authorityDaysOld
         });
       }
     });
 
+    return leads;
+  };
+
+  const processImport = async (text) => {
+    const leads = parseCsvSmart(text);
     if (leads.length === 0) {
-      if (typeof showToast === 'function') showToast('No valid carrier numbers found', 'warning');
+      if (typeof showToast === 'function') showToast('Please upload a valid CSV file or paste MC/USDOT numbers', 'warning');
       return;
     }
 
@@ -115,7 +201,7 @@ window.submitImportLeads = async function() {
         body: JSON.stringify({ leads })
       });
       const data = await res.json();
-      if (typeof showToast === 'function') showToast(data.message || `Imported ${leads.length} leads!`, 'success');
+      if (typeof showToast === 'function') showToast(data.message || `Successfully imported ${leads.length} leads!`, 'success');
       window.closeImportModal();
       if (textInput) textInput.value = '';
       if (fileInput) fileInput.value = '';
@@ -133,6 +219,7 @@ window.submitImportLeads = async function() {
     processImport(textContent);
   }
 };
+
 
 
 
