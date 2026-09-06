@@ -854,6 +854,7 @@ app.post('/api/scraper/start', (req, res) => {
       try {
         await new Promise(r => setTimeout(r, 100));
         const item = await parseSaferCarrier(dot);
+        if (item.isRateLimited) { activeScrapeJobs[jobId].logs.push([COOLDOWN]  - SAFER WAF Rate Limit hit. Pausing 3s...); await new Promise(r => setTimeout(r, 3000)); }
         const tagLabel = getTargetLabel(dot, item.usdot);
 
         if (!item.skipped) {
