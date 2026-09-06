@@ -696,6 +696,7 @@ app.post('/api/carriers/bulk-assign', (req, res) => {
 
 
 app.post('/api/scraper/stop', (req, res) => {
+  const sessionUser = getSessionUser(req);
 
   const { jobId } = req.body || {};
   if (jobId && activeScrapeJobs[jobId]) {
@@ -716,6 +717,7 @@ app.post('/api/scraper/stop', (req, res) => {
 
 
 app.post('/api/database/import', (req, res) => {
+  const sessionUser = getSessionUser(req);
 
   const { leads = [] } = req.body;
   if (!Array.isArray(leads) || leads.length === 0) {
