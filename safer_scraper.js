@@ -3,9 +3,9 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-const PROXY_HOST = '48.46.12.121';
-const PROXY_PORT = 5751;
-const PROXY_AUTH = 'Basic ' + Buffer.from('qosjlymz:pzqs1nimyl29').toString('base64');
+const PROXY_HOST = '198.23.243.226';
+const PROXY_PORT = 6361;
+const PROXY_AUTH = 'Basic ' + Buffer.from('suhxuhaw:83x4ftxemhsc').toString('base64');
 
 // Load Pre-Indexed Real Verified Census Records First (Fast Path)
 const VERIFIED_CARRIERS_MAP = new Map();
@@ -207,11 +207,11 @@ function parseSaferHtmlToCarrierObj(html, targetInput, cleanQuery) {
     inspections: 0,
     outOfServicePct: '0.0%',
     accuracyScore: 99,
-    source: 'FMCSA SAFER Live Engine (Proxy CONNECT)',
+    source: 'FMCSA SAFER Live Engine (User Proxy)',
     lastScraped: new Date().toISOString(),
     crmStatus: 'New Lead',
     assignedRep: 'Unassigned',
-    notes: [{ date: new Date().toISOString().split('T')[0], author: 'FMCSA SAFER Engine', text: 'Real active carrier verified live from SAFER' }],
+    notes: [{ date: new Date().toISOString().split('T')[0], author: 'FMCSA SAFER Engine', text: 'Real active carrier verified live from SAFER via user proxy' }],
     starRating: 5,
     tags: ['Fresh MC', 'Verified Active'],
     skipped: false
