@@ -7,7 +7,7 @@ const PROXY_HOST = '48.46.12.121';
 const PROXY_PORT = 5751;
 const PROXY_AUTH = 'Basic ' + Buffer.from('qosjlymz:pzqs1nimyl29').toString('base64');
 
-function fetchSaferHtml(queryStr, queryParam = 'USDOT') {
+function fetchSaferHtmlOnce(queryStr, queryParam, userAgent) {
   return new Promise((resolve) => {
     const req = http.request({
       host: PROXY_HOST,
@@ -17,7 +17,7 @@ function fetchSaferHtml(queryStr, queryParam = 'USDOT') {
       headers: { 'Proxy-Authorization': PROXY_AUTH }
     });
 
-    req.setTimeout(12000, () => {
+    req.setTimeout(10000, () => {
       req.destroy();
       resolve(null);
     });
@@ -34,7 +34,10 @@ function fetchSaferHtml(queryStr, queryParam = 'USDOT') {
         socket: socket,
         agent: false,
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          'User-Agent': userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cache-Control': 'no-cache'
         }
       }, saferRes => {
         let html = '';
@@ -42,7 +45,7 @@ function fetchSaferHtml(queryStr, queryParam = 'USDOT') {
         saferRes.on('end', () => resolve(html));
       });
 
-      saferReq.setTimeout(12000, () => {
+      saferReq.setTimeout(10000, () => {
         saferReq.destroy();
         resolve(null);
       });
@@ -53,6 +56,26 @@ function fetchSaferHtml(queryStr, queryParam = 'USDOT') {
     req.on('error', () => resolve(null));
     req.end();
   });
+}
+
+async function fetchSaferHtml(queryStr, queryParam = 'USDOT', retries = 2) {
+  const uas = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0'
+  ];
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const html = await fetchSaferHtmlOnce(queryStr, queryParam, uas[attempt % uas.length]);
+    if (html && (html.includes('Legal Name:') || html.includes('Record Inactive') || html.includes('INACTIVE') || html.includes('Record Not Found') || html.includes('No records matching'))) {
+      return html;
+    }
+    if (attempt < retries) {
+      await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
+    }
+  }
+
+  return null;
 }
 
 function fetchFmcsaEmail(usdot) {
