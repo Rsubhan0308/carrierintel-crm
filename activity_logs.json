@@ -1,5 +1,20 @@
 [
   {
+    "id": "LOG-1788657533256-972",
+    "timestamp": "2026-09-06T01:18:53.256Z",
+    "displayTime": "2026-09-06, 6:18:53 a.m.",
+    "actionType": "USER_LOGIN",
+    "userId": "USER-ADMIN",
+    "userName": "System Admin",
+    "userRole": "ADMIN",
+    "carrierId": "",
+    "companyName": "",
+    "status": "",
+    "noteText": "User System Admin logged into system.",
+    "recordingUrl": "",
+    "recordingDuration": 0
+  },
+  {
     "id": "LOG-1788528325214-544",
     "timestamp": "2026-09-04T13:25:25.214Z",
     "displayTime": "2026-09-04, 6:25:25 p.m.",

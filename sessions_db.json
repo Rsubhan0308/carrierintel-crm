@@ -22,5 +22,11 @@
     "name": "System Admin",
     "email": "admin@carrierintel.com",
     "role": "ADMIN"
+  },
+  "SESS-1788657533256-fghk6cv": {
+    "id": "USER-ADMIN",
+    "name": "System Admin",
+    "email": "admin@carrierintel.com",
+    "role": "ADMIN"
   }
 }

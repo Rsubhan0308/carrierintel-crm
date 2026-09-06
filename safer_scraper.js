@@ -1,3 +1,5 @@
+const OFFICIAL_FMCSA_WEBKEY = "dfb9a584cb3db4f8fe30e281cd82d4639b2612c9";
+
 const http = require('http');
 const https = require('https');
 
