@@ -1022,6 +1022,7 @@ function initScraperForm() {
 
     const stateFilter = document.getElementById('scraper-state-filter') ? document.getElementById('scraper-state-filter').value : 'ALL';
     const equipFilter = document.getElementById('scraper-equip-filter') ? document.getElementById('scraper-equip-filter').value : 'ALL';
+    const ageFilter = document.getElementById('scraper-age-filter') ? document.getElementById('scraper-age-filter').value : 'ALL';
     const maxRecords = document.getElementById('scraper-max-records') ? document.getElementById('scraper-max-records').value : 25;
     const skipDuplicates = document.getElementById('scraper-skip-duplicates') ? document.getElementById('scraper-skip-duplicates').checked : true;
     const proxyEnrichment = document.getElementById('scraper-proxy-enrichment') ? document.getElementById('scraper-proxy-enrichment').checked : true;
@@ -1030,7 +1031,7 @@ function initScraperForm() {
       const res = await fetch('/api/scraper/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.sessionToken}` },
-        body: JSON.stringify({ dotList, stateFilter, equipFilter, maxRecords, skipDuplicates, proxyEnrichment })
+        body: JSON.stringify({ dotList, stateFilter, equipFilter, ageFilter, maxRecords, skipDuplicates, proxyEnrichment })
       });
       const data = await res.json();
       showToast(`Scraper job ${data.jobId} started!`, 'success');

@@ -712,7 +712,7 @@ app.post('/api/scraper/start', (req, res) => {
   const sessionUser = requireAuth(req, res, ['ADMIN']);
   if (!sessionUser) return;
 
-  const { dotList, maxRecords = 25, stateFilter = 'ALL', equipFilter = 'ALL', skipDuplicates = true } = req.body;
+  const { dotList, maxRecords = 25, stateFilter = 'ALL', equipFilter = 'ALL', ageFilter = 'ALL', skipDuplicates = true } = req.body;
   const jobId = `JOB-${Date.now()}`;
   let targets = [];
 
@@ -727,6 +727,8 @@ app.post('/api/scraper/start', (req, res) => {
     });
   }
 
+  const maxAgeDays = ageFilter !== 'ALL' ? parseInt(ageFilter, 10) : null;
+
   activeScrapeJobs[jobId] = {
     id: jobId,
     status: 'RUNNING',
@@ -735,8 +737,8 @@ app.post('/api/scraper/start', (req, res) => {
     scrapedCount: 0,
     skippedCount: 0,
     logs: [
-      `[INIT] Starting FMCSA SAFER Python Scraper Job #${jobId}`,
-      `[CONFIG] Targets: ${targets.length} USDOTs | State: ${stateFilter} | Equipment: ${equipFilter} | Skip Dupes: ${skipDuplicates}`
+      `[INIT] Starting FMCSA SAFER Engine Job #${jobId}`,
+      `[CONFIG] Targets: ${targets.length} USDOTs | State: ${stateFilter} | Equipment: ${equipFilter} | Age Filter: ${ageFilter === 'ALL' ? 'All Ages' : '<= ' + ageFilter + ' Days'} | Skip Dupes: ${skipDuplicates}`
     ],
     results: []
   };
@@ -758,6 +760,9 @@ app.post('/api/scraper/start', (req, res) => {
           } else if (equipFilter !== 'ALL' && !item.equipment.includes(equipFilter)) {
             activeScrapeJobs[jobId].skippedCount++;
             activeScrapeJobs[jobId].logs.push(`[SKIP] USDOT #${dot} - Equipment mismatch (${item.equipment.join(', ')} != ${equipFilter})`);
+          } else if (maxAgeDays !== null && item.authorityDaysOld > maxAgeDays) {
+            activeScrapeJobs[jobId].skippedCount++;
+            activeScrapeJobs[jobId].logs.push(`[SKIP] USDOT #${dot} - Authority age mismatch (${item.authorityDaysOld}d > ${maxAgeDays}d max)`);
           } else {
             const existingIdx = carriersDatabase.findIndex(c => c.usdot === item.usdot || (c.mcNumber && c.mcNumber === item.mcNumber));
             if (existingIdx !== -1 && skipDuplicates) {
