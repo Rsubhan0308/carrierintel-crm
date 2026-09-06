@@ -1,9 +1,13 @@
+const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
-const http = require('http');
 
-// 1. Load Real Verified Active Carriers from Census JSON
+const PROXY_HOST = '48.46.12.121';
+const PROXY_PORT = 5751;
+const PROXY_AUTH = 'Basic ' + Buffer.from('qosjlymz:pzqs1nimyl29').toString('base64');
+
+// Load Pre-Indexed Real Verified Census Records First (Fast Path)
 const VERIFIED_CARRIERS_MAP = new Map();
 
 function loadCensusDataset() {
@@ -17,7 +21,7 @@ function loadCensusDataset() {
           if (item.mcClean) VERIFIED_CARRIERS_MAP.set(String(item.mcClean), item);
           if (item.usdot) VERIFIED_CARRIERS_MAP.set(String(item.usdot), item);
         });
-        console.log(`📦 Loaded ${VERIFIED_CARRIERS_MAP.size} real verified carriers into census map.`);
+        console.log(`📦 Loaded ${VERIFIED_CARRIERS_MAP.size} verified carriers into map.`);
       }
     }
   } catch (err) {
@@ -26,35 +30,53 @@ function loadCensusDataset() {
 }
 loadCensusDataset();
 
-// 2. Native Pure JS SAFER HTML Fetcher
-function fetchSaferHtmlNative(cleanQuery, queryParam = 'MC_MX') {
+// Native Proxy CONNECT SAFER Live Fetcher for ANY arbitrary MC or USDOT Number
+function fetchSaferHtmlViaProxy(queryParam, queryStr) {
   return new Promise((resolve) => {
-    const searchParam = queryParam === 'MC_MX' ? 'MC_MX' : 'USDOT';
-    const pathStr = `/query.asp?searchtype=ANY&query_type=${searchParam}&query_param=${searchParam}&query_string=${cleanQuery}`;
-    
-    const options = {
-      hostname: 'safer.fmcsa.dot.gov',
-      path: pathStr,
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5'
-      }
-    };
-
-    const req = https.get(options, (res) => {
-      let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => resolve({ status: res.statusCode, body }));
+    const req = http.request({
+      host: PROXY_HOST,
+      port: PROXY_PORT,
+      method: 'CONNECT',
+      path: 'safer.fmcsa.dot.gov:443',
+      headers: { 'Proxy-Authorization': PROXY_AUTH }
     });
 
-    req.setTimeout(7000, () => {
+    req.setTimeout(10000, () => {
       req.destroy();
-      resolve({ error: 'SAFER Request Timeout' });
+      resolve({ error: 'Proxy Connection Timeout' });
+    });
+
+    req.on('connect', (res, socket) => {
+      if (res.statusCode !== 200) {
+        return resolve({ error: `Proxy Connect Error ${res.statusCode}` });
+      }
+
+      const pathStr = '/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=' + queryParam + '&query_string=' + queryStr;
+
+      const clientReq = https.request({
+        host: 'safer.fmcsa.dot.gov',
+        path: pathStr,
+        method: 'GET',
+        socket: socket,
+        agent: false,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Connection': 'keep-alive'
+        }
+      }, (saferRes) => {
+        let body = '';
+        saferRes.on('data', chunk => body += chunk);
+        saferRes.on('end', () => resolve({ status: saferRes.statusCode, body }));
+      });
+
+      clientReq.on('error', err => resolve({ error: err.message }));
+      clientReq.end();
     });
 
     req.on('error', err => resolve({ error: err.message }));
+    req.end();
   });
 }
 
@@ -185,11 +207,11 @@ function parseSaferHtmlToCarrierObj(html, targetInput, cleanQuery) {
     inspections: 0,
     outOfServicePct: '0.0%',
     accuracyScore: 99,
-    source: 'FMCSA SAFER Live Engine (Native JS)',
+    source: 'FMCSA SAFER Live Engine (Proxy CONNECT)',
     lastScraped: new Date().toISOString(),
     crmStatus: 'New Lead',
     assignedRep: 'Unassigned',
-    notes: [{ date: new Date().toISOString().split('T')[0], author: 'FMCSA SAFER Native Engine', text: 'Real active carrier verified from SAFER' }],
+    notes: [{ date: new Date().toISOString().split('T')[0], author: 'FMCSA SAFER Engine', text: 'Real active carrier verified live from SAFER' }],
     starRating: 5,
     tags: ['Fresh MC', 'Verified Active'],
     skipped: false
@@ -203,7 +225,7 @@ async function parseSaferCarrier(targetInput) {
   let cleanQuery = rawInput.replace(/^(MC|MX|FF)[\-\s]*/i, '').replace(/\D/g, '');
   if (!cleanQuery) return { target: rawInput, skipped: true, reason: 'Invalid MC/USDOT Number' };
 
-  // A. Check Local Real Verified Census Map First
+  // 1. Check Verified Local Census Map First (Fast Path)
   if (VERIFIED_CARRIERS_MAP.has(cleanQuery)) {
     const cached = VERIFIED_CARRIERS_MAP.get(cleanQuery);
     return {
@@ -247,12 +269,12 @@ async function parseSaferCarrier(targetInput) {
     };
   }
 
-  // B. Run Pure Native Node JS SAFER HTML Scraper
-  const queryParam = /^(MC|MX|FF)/i.test(rawInput) || (/^\d{5,7}$/.test(rawInput) && (rawInput.startsWith('1') || rawInput.startsWith('2'))) ? 'MC_MX' : 'USDOT';
-  const res = await fetchSaferHtmlNative(cleanQuery, queryParam);
-  
+  // 2. Query SAFER Live Page via HTTP Proxy CONNECT in Native Node.js
+  const queryParam = /^(MC|MX|FF)/i.test(rawInput) || (/^\d{5,7}$/.test(rawInput) && (rawInput.startsWith('1') || rawInput.startsWith('2') || rawInput.startsWith('0'))) ? 'MC_MX' : 'USDOT';
+  const res = await fetchSaferHtmlViaProxy(queryParam, cleanQuery);
+
   if (res.error) {
-    return { target: rawInput, usdot: cleanQuery, skipped: true, reason: `MC/DOT #${rawInput} SAFER Timeout (${res.error})` };
+    return { target: rawInput, usdot: cleanQuery, skipped: true, reason: `MC/DOT #${rawInput} SAFER Connection Error (${res.error})` };
   }
 
   return parseSaferHtmlToCarrierObj(res.body, rawInput, cleanQuery);
