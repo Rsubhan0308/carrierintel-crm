@@ -714,12 +714,30 @@ app.post('/api/scraper/start', (req, res) => {
 
   const { dotList, maxRecords = 25, stateFilter = 'ALL', equipFilter = 'ALL', ageFilter = 'ALL', skipDuplicates = true } = req.body;
   const jobId = `JOB-${Date.now()}`;
+  const numToScrape = parseInt(maxRecords, 10) || 25;
   let targets = [];
 
   if (dotList && Array.isArray(dotList) && dotList.length > 0) {
     targets = dotList.map(d => d.trim()).filter(Boolean);
+    // If fewer targets were provided than the target batch count (e.g. 1 MC input vs 100 batch count), auto-expand consecutive targets!
+    if (targets.length < numToScrape) {
+      const lastTarget = targets[targets.length - 1];
+      const match = lastTarget.match(/^([^\d]*)(\d+)([^\d]*)$/);
+      if (match) {
+        const prefix = match[1];
+        let num = parseInt(match[2], 10);
+        const suffix = match[3];
+        const needed = numToScrape - targets.length;
+        for (let k = 0; k < needed; k++) {
+          num++;
+          const numStr = match[2].startsWith('0') && match[2].length > 1
+            ? num.toString().padStart(match[2].length, '0')
+            : num.toString();
+          targets.push(`${prefix}${numStr}${suffix}`);
+        }
+      }
+    }
   } else {
-    const numToScrape = parseInt(maxRecords, 10) || 25;
     const baseMcs = ["MC-1380828", "MC-1563818", "MC-1374760"];
     const startMcNum = 1380800;
     targets = Array.from({ length: numToScrape }, (_, i) => {
@@ -796,7 +814,25 @@ app.post('/api/scraper/start', (req, res) => {
         activeScrapeJobs[jobId].skippedCount++;
         activeScrapeJobs[jobId].logs.push(`[ERROR] Target #${dot} - Exception: ${e.message}`);
       }
-      activeScrapeJobs[jobId].progress = Math.round(((i + 1) / targets.length) * 100);
+
+      // Dynamic Continuation: If extracted count is less than requested numToScrape batch count and we're at the end of targets,
+      // dynamically add next consecutive MC/DOT target (up to max 5x attempts) so inactive ones are skipped automatically.
+      if (activeScrapeJobs[jobId].scrapedCount < numToScrape && i === targets.length - 1 && targets.length < numToScrape * 5) {
+        const lastTarget = targets[targets.length - 1];
+        const match = lastTarget.match(/^([^\d]*)(\d+)([^\d]*)$/);
+        if (match) {
+          const prefix = match[1];
+          let num = parseInt(match[2], 10) + 1;
+          const suffix = match[3];
+          const numStr = match[2].startsWith('0') && match[2].length > 1
+            ? num.toString().padStart(match[2].length, '0')
+            : num.toString();
+          targets.push(`${prefix}${numStr}${suffix}`);
+          activeScrapeJobs[jobId].total = targets.length;
+        }
+      }
+
+      activeScrapeJobs[jobId].progress = Math.min(100, Math.round(((i + 1) / targets.length) * 100));
     }
 
     activeScrapeJobs[jobId].progress = 100;
