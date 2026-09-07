@@ -889,7 +889,13 @@
           <div class="rec-timer" id="rec-timer-display">00:00</div>
           <span class="rec-sub"><i class="fa-solid fa-headset"></i> <span style="color:#10b981; font-weight:bold;">🟢 2-Way Both-Sides Call Audio Recording Active</span></span>
           <div style="font-size: 0.75rem; color: var(--accent-cyan); margin-top: 6px;"><i class="fa-solid fa-microphone-lines"></i> Capturing Microphone Input + Softphone/Recipient Audio Stream</div>
-          <div id="rec-status-notice" style="font-size: 0.73rem; color: #10b981; margin-top: 6px; background: rgba(16, 185, 129, 0.1); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.2);">
+          
+        <div style="margin-top: 10px; margin-bottom: 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+          <button type="button" id="btn-manual-link-audio" onclick="addSystemAudioStream()" class="btn btn-sm" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); font-size: 0.78rem; font-weight: bold; padding: 6px 12px; border-radius: 8px; cursor: pointer;">
+            <i class="fa-solid fa-headset"></i> Link Recipient Speaker Stream (Click to Record Softphone)
+          </button>
+        </div>
+        <div id="rec-status-notice" style="font-size: 0.73rem; color: #10b981; margin-top: 6px; background: rgba(16, 185, 129, 0.1); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.2);">
             <i class="fa-solid fa-circle-check"></i> Automatic 2-Way Audio Link Engaged (Microphone + Recipient Voice)
           </div>
         </div>
