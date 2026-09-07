@@ -2188,13 +2188,18 @@ window.markCallbackCompleted = markCallbackCompleted;
   }
 
 
+
 function fillAdminLogin() {
   const emailInput = document.getElementById('login-email');
   const passInput = document.getElementById('login-password');
+  const form = document.getElementById('login-form');
   if (emailInput && passInput) {
     emailInput.value = 'admin@carrierintel.com';
     passInput.value = 'admin123';
-    showToast('Admin credentials filled! Click Account Login to continue.', 'info');
+  }
+  if (form) {
+    showToast('Logging in as System Admin...', 'info');
+    form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
   }
 }
 window.fillAdminLogin = fillAdminLogin;
