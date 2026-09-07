@@ -482,7 +482,10 @@ async function addSystemAudioStream() {
 
     if (state.recordingAudioCtx && state.recordingDestNode) {
       const sysSourceNode = state.recordingAudioCtx.createMediaStreamSource(new MediaStream([sysAudioTracks[0]]));
-      sysSourceNode.connect(state.recordingDestNode);
+      const sysGainNode = state.recordingAudioCtx.createGain();
+      sysGainNode.gain.value = 2.5; // Boost recipient voice volume
+      sysSourceNode.connect(sysGainNode);
+      sysGainNode.connect(state.recordingDestNode);
     }
 
     const subText = document.querySelector('.rec-sub');
@@ -588,6 +591,34 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
     compressorNode.release.value = 0.25;
 
     micSourceNode.connect(gainNode);
+
+    // Auto-connect persistent recipient/system audio stream if active
+    if (state.displayStream && state.displayStream.getAudioTracks().some(t => t.readyState === 'live')) {
+      const liveSysTrack = state.displayStream.getAudioTracks().find(t => t.readyState === 'live');
+      if (liveSysTrack) {
+        const sysSourceNode = audioCtx.createMediaStreamSource(new MediaStream([liveSysTrack]));
+        const sysGainNode = audioCtx.createGain();
+        sysGainNode.gain.value = 2.5; // Boost recipient voice volume
+        sysSourceNode.connect(sysGainNode);
+        sysGainNode.connect(destNode);
+        console.log('✅ Persistent recipient audio stream auto-linked to call recorder!');
+        
+        const subText = document.querySelector('.rec-sub');
+        if (subText) {
+          subText.innerHTML = '<i class="fa-solid fa-headset"></i> <span style="color:#10b981; font-weight:bold;">🟢 2-Way Both-Sides Active (Mic + Recipient Voice Linked)</span>';
+        }
+        const recStatusNotice = document.getElementById('rec-status-notice');
+        if (recStatusNotice) {
+          recStatusNotice.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#10b981;"></i> Recipient voice stream connected automatically!';
+        }
+      }
+    } else {
+      // If not linked yet, prompt system audio link during this click gesture
+      setTimeout(() => {
+        if (typeof addSystemAudioStream === 'function') addSystemAudioStream();
+      }, 100);
+    }
+
     gainNode.connect(compressorNode);
     compressorNode.connect(destNode);
 
