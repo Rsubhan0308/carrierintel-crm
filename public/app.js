@@ -598,6 +598,13 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
     document.getElementById('floating-call-bar').style.display = 'none';
     showToast('🎙️ 2-Way Both-Sides Call Recording Active!', 'success');
 
+    // Auto-prompt system/softphone recipient audio stream immediately
+    setTimeout(() => {
+      if (typeof addSystemAudioStream === 'function') {
+        addSystemAudioStream();
+      }
+    }, 400);
+
   } catch (err) {
     console.error('Microphone access error:', err);
     showToast('Please allow microphone permissions to place calls & record audio.', 'error');
