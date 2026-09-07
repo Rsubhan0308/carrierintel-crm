@@ -614,9 +614,7 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
       }
     } else {
       // If not linked yet, prompt system audio link during this click gesture
-      setTimeout(() => {
-        if (typeof addSystemAudioStream === 'function') addSystemAudioStream();
-      }, 100);
+      // Disabled getDisplayMedia popup on call start
     }
 
     gainNode.connect(compressorNode);
