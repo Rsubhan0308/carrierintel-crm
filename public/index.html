@@ -884,6 +884,12 @@
             <option value="default">🔊 Default System Mic (Auto Both-Sides Capture)</option>
           </select>
         </div>
+        <div id="audio-preview-container" style="display: none; margin-top: 14px; background: rgba(15, 23, 42, 0.9); padding: 12px; border-radius: 10px; border: 1px solid var(--border-color);">
+          <div style="font-size: 0.75rem; font-weight: bold; color: var(--accent-cyan); margin-bottom: 6px;">
+            <i class="fa-solid fa-play"></i> Instant Call Recording Preview (Verify Both Voices):
+          </div>
+          <audio id="call-audio-preview" controls style="width: 100%; height: 36px; outline: none;"></audio>
+        </div>
         <div class="recording-pulse-box">
           <div class="rec-dot"></div>
           <div class="rec-timer" id="rec-timer-display">00:00</div>

@@ -678,6 +678,15 @@ async function stopAndSaveCallRecording() {
 
   state.mediaRecorder.onstop = async () => {
     const audioBlob = new Blob(state.audioChunks, { type: 'audio/webm' });
+    
+    // Enable instant call audio playback preview in modal
+    const audioPreviewElem = document.getElementById('call-audio-preview');
+    const audioContainer = document.getElementById('audio-preview-container');
+    if (audioPreviewElem && audioContainer) {
+      audioPreviewElem.src = URL.createObjectURL(audioBlob);
+      audioContainer.style.display = 'block';
+    }
+    const audioBlob = new Blob(state.audioChunks, { type: 'audio/webm' });
 
     // Convert Audio Blob to Base64 string
     const reader = new FileReader();
