@@ -239,7 +239,7 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(400).json({ error: 'Email and password are required' });
   }
 
-  const user = usersDatabase.find(u => u.email.toLowerCase() === email.toLowerCase().trim() && u.password === password);
+  const user = usersDatabase.find(u => u.email.toLowerCase() === email.toLowerCase().trim() && (u.password || '').trim() === (password || '').trim());
   if (!user) {
     return res.status(401).json({ error: 'Invalid corporate email or password.' });
   }

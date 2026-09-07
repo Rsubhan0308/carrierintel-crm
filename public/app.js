@@ -2186,3 +2186,15 @@ window.markCallbackCompleted = markCallbackCompleted;
       }
     });
   }
+
+
+function fillAdminLogin() {
+  const emailInput = document.getElementById('login-email');
+  const passInput = document.getElementById('login-password');
+  if (emailInput && passInput) {
+    emailInput.value = 'admin@carrierintel.com';
+    passInput.value = 'admin123';
+    showToast('Admin credentials filled! Click Account Login to continue.', 'info');
+  }
+}
+window.fillAdminLogin = fillAdminLogin;
