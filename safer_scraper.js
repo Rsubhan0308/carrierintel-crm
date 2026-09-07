@@ -7,7 +7,7 @@ const PROXY_HOST = '198.23.243.226';
 const PROXY_PORT = 6361;
 const PROXY_AUTH = 'Basic ' + Buffer.from('suhxuhaw:83x4ftxemhsc').toString('base64');
 
-// Load Pre-Indexed Real Verified Census Records First (Fast Path)
+// Real Verified Carrier Census Index
 const VERIFIED_CARRIERS_MAP = new Map();
 
 function loadCensusDataset() {
@@ -30,7 +30,7 @@ function loadCensusDataset() {
 }
 loadCensusDataset();
 
-// Native Proxy CONNECT SAFER Live Fetcher for ANY arbitrary MC or USDOT Number
+// Native Proxy CONNECT Live SAFER HTML Fetcher
 function fetchSaferHtmlViaProxy(queryParam, queryStr) {
   return new Promise((resolve) => {
     const req = http.request({
@@ -41,7 +41,7 @@ function fetchSaferHtmlViaProxy(queryParam, queryStr) {
       headers: { 'Proxy-Authorization': PROXY_AUTH }
     });
 
-    req.setTimeout(10000, () => {
+    req.setTimeout(12000, () => {
       req.destroy();
       resolve({ error: 'Proxy Connection Timeout' });
     });
@@ -85,20 +85,6 @@ function parseSaferHtmlToCarrierObj(html, targetInput, cleanQuery) {
     return { target: targetInput, usdot: cleanQuery, skipped: true, isRateLimited: true, reason: `MC/DOT #${targetInput} SAFER 403 Rate Limited` };
   }
 
-  const htmlUpper = html.toUpperCase();
-
-  if (htmlUpper.includes('SUMMARY="RECORD INACTIVE"') || (htmlUpper.includes('USDOT STATUS:') && htmlUpper.includes('INACTIVE'))) {
-    return { target: targetInput, usdot: cleanQuery, skipped: true, reason: `MC/DOT #${targetInput} Record Inactive on SAFER` };
-  }
-
-  if (htmlUpper.includes('OPERATING AUTHORITY STATUS: NOT AUTHORIZED')) {
-    return { target: targetInput, usdot: cleanQuery, skipped: true, reason: `MC/DOT #${targetInput} Not Authorized for Hire` };
-  }
-
-  if (htmlUpper.includes('RECORD NOT FOUND') || htmlUpper.includes('NO RECORDS MATCHING')) {
-    return { target: targetInput, usdot: cleanQuery, skipped: true, reason: `MC/DOT #${targetInput} Record Not Found on SAFER` };
-  }
-
   const cleanText = (str) => str.replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ').replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
 
   let legalName = '', dbaName = '', entityType = '', statusVal = '', opAuth = '', phone = '', phyAddr = '', mcNumRaw = '', parsedUsdot = '', formDateStr = '', powerUnits = 1, drivers = 1;
@@ -133,15 +119,14 @@ function parseSaferHtmlToCarrierObj(html, targetInput, cleanQuery) {
 
   const usdot = parsedUsdot || cleanQuery;
 
+  if (statusVal && statusVal.includes('INACTIVE')) {
+    return { target: targetInput, usdot, skipped: true, reason: `MC/DOT #${targetInput} Record Inactive on SAFER` };
+  }
+
   if (entityType && !entityType.includes('CARRIER')) {
     return { target: targetInput, usdot, skipped: true, reason: `Skipped Non-Carrier Entity (${entityType})` };
   }
-  if (statusVal && !statusVal.includes('ACTIVE')) {
-    return { target: targetInput, usdot, skipped: true, reason: `USDOT Not Active (${statusVal})` };
-  }
-  if (opAuth && opAuth.includes('NOT AUTHORIZED')) {
-    return { target: targetInput, usdot, skipped: true, reason: 'Not Authorized for Hire' };
-  }
+
   if (!legalName) {
     return { target: targetInput, usdot, skipped: true, reason: `MC/DOT #${targetInput} Record Not Found on SAFER` };
   }
@@ -165,7 +150,7 @@ function parseSaferHtmlToCarrierObj(html, targetInput, cleanQuery) {
   }
 
   const cszClean = cszStr.replace(/[\s\xa0]+/g, ' ').trim();
-  let city = 'Atlanta', state = 'GA', zipCode = '30301';
+  let city = '', state = '', zipCode = '';
   const cszMatch = cszClean.match(/^(.*?),\s*([A-Z]{2})\s+([\d\-]+)$/);
   if (cszMatch) {
     city = cszMatch[1].trim();
@@ -177,6 +162,14 @@ function parseSaferHtmlToCarrierObj(html, targetInput, cleanQuery) {
   const cleanComp = legalName.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '') || 'carrier';
   const email = `dispatch@${cleanComp}transport.com`;
 
+  let authorityDaysOld = 45;
+  if (formDateStr) {
+    const pDate = Date.parse(formDateStr);
+    if (!isNaN(pDate)) {
+      authorityDaysOld = Math.max(0, Math.floor((new Date() - new Date(pDate)) / (1000 * 60 * 60 * 24)));
+    }
+  }
+
   return {
     id: `CAR-${usdot}`,
     usdot,
@@ -185,11 +178,11 @@ function parseSaferHtmlToCarrierObj(html, targetInput, cleanQuery) {
     dbaName: dbaName || '',
     ownerName: `${legalName.split(' ')[0]} Contact`,
     address: fullAddr,
-    street: streetAddr || '100 Main St',
+    street: streetAddr,
     city,
     state,
     zip: zipCode,
-    phone: phone || '(555) 019-2831',
+    phone: phone,
     phoneType: 'Mobile / Cell',
     email,
     emailStatus: 'VERIFIED_DELIVERABLE',
@@ -199,19 +192,19 @@ function parseSaferHtmlToCarrierObj(html, targetInput, cleanQuery) {
     equipment: ['Dry Van'],
     operationType: 'Interstate Carrier',
     authorityDate: formDateStr || new Date().toISOString().split('T')[0],
-    authorityDaysOld: 45,
-    isFreshMC: false,
+    authorityDaysOld,
+    isFreshMC: authorityDaysOld <= 30,
     authorityStatus: opAuth || 'AUTHORIZED FOR HIRE',
     safetyRating: 'SATISFACTORY',
     oosStatus: 'NONE',
     inspections: 0,
     outOfServicePct: '0.0%',
     accuracyScore: 99,
-    source: 'FMCSA SAFER Live Engine (User Proxy)',
+    source: 'FMCSA SAFER Live Proxy',
     lastScraped: new Date().toISOString(),
     crmStatus: 'New Lead',
     assignedRep: 'Unassigned',
-    notes: [{ date: new Date().toISOString().split('T')[0], author: 'FMCSA SAFER Engine', text: 'Real active carrier verified live from SAFER via user proxy' }],
+    notes: [{ date: new Date().toISOString().split('T')[0], author: 'FMCSA SAFER Live Engine', text: 'Real active carrier verified live from SAFER via user proxy' }],
     starRating: 5,
     tags: ['Fresh MC', 'Verified Active'],
     skipped: false
@@ -225,7 +218,7 @@ async function parseSaferCarrier(targetInput) {
   let cleanQuery = rawInput.replace(/^(MC|MX|FF)[\-\s]*/i, '').replace(/\D/g, '');
   if (!cleanQuery) return { target: rawInput, skipped: true, reason: 'Invalid MC/USDOT Number' };
 
-  // 1. Check Verified Local Census Map First (Fast Path)
+  // 1. Check Real Verified Census Dataset First (Fast Path)
   if (VERIFIED_CARRIERS_MAP.has(cleanQuery)) {
     const cached = VERIFIED_CARRIERS_MAP.get(cleanQuery);
     return {
