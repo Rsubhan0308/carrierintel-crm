@@ -7,7 +7,7 @@ const PROXY_HOST = '198.23.243.226';
 const PROXY_PORT = 6361;
 const PROXY_AUTH = 'Basic ' + Buffer.from('suhxuhaw:83x4ftxemhsc').toString('base64');
 
-// Real Verified Carrier Census Index
+// Load Verified Carrier Census Map First (Fast Path)
 const VERIFIED_CARRIERS_MAP = new Map();
 
 function loadCensusDataset() {
@@ -30,7 +30,7 @@ function loadCensusDataset() {
 }
 loadCensusDataset();
 
-// Native Proxy CONNECT Live SAFER HTML Fetcher
+// Native Proxy CONNECT SAFER Live Fetcher for ANY arbitrary MC or USDOT Number
 function fetchSaferHtmlViaProxy(queryParam, queryStr) {
   return new Promise((resolve) => {
     const req = http.request({
@@ -87,7 +87,7 @@ function parseSaferHtmlToCarrierObj(html, targetInput, cleanQuery) {
 
   const cleanText = (str) => str.replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ').replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
 
-  let legalName = '', dbaName = '', entityType = '', statusVal = '', opAuth = '', phone = '', phyAddr = '', mcNumRaw = '', parsedUsdot = '', formDateStr = '', powerUnits = 1, drivers = 1;
+  let legalName = '', dbaName = '', entityType = '', statusVal = '', opAuth = '', phone = '', phyAddr = '', mcNumRaw = '', parsedUsdot = '', formDateStr = '', powerUnits = 1, drivers = 1, oosStatus = '';
 
   const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
   let match;
@@ -107,6 +107,7 @@ function parseSaferHtmlToCarrierObj(html, targetInput, cleanQuery) {
       else if (lbl.includes('DBA Name:')) dbaName = val;
       else if (lbl.includes('USDOT Status:')) statusVal = val.toUpperCase();
       else if (lbl.includes('Operating Authority Status:')) opAuth = val.toUpperCase();
+      else if (lbl.includes('Out of Service:')) oosStatus = val.toUpperCase();
       else if (lbl.includes('USDOT Number:')) parsedUsdot = val.replace(/\D/g, '');
       else if (lbl.includes('MCS-150 Form Date:')) formDateStr = val;
       else if (lbl.includes('Phone:')) phone = val;
@@ -119,12 +120,24 @@ function parseSaferHtmlToCarrierObj(html, targetInput, cleanQuery) {
 
   const usdot = parsedUsdot || cleanQuery;
 
+  // Strict Filter 1: USDOT Status must be ACTIVE
   if (statusVal && statusVal.includes('INACTIVE')) {
     return { target: targetInput, usdot, skipped: true, reason: `MC/DOT #${targetInput} Record Inactive on SAFER` };
   }
 
+  // Strict Filter 2: Must be CARRIER entity type (not Broker, Freight Forwarder, Shipper)
   if (entityType && !entityType.includes('CARRIER')) {
     return { target: targetInput, usdot, skipped: true, reason: `Skipped Non-Carrier Entity (${entityType})` };
+  }
+
+  // Strict Filter 3: Operating Authority MUST be Authorized for Hire and NOT Out of Service/Revoked/Not Authorized
+  if (!opAuth || opAuth.includes('NOT AUTHORIZED') || opAuth.includes('OUT-OF-SERVICE') || opAuth.includes('OUT OF SERVICE') || opAuth.includes('NONE') || opAuth.includes('INACTIVE') || opAuth.includes('REVOKED')) {
+    return { target: targetInput, usdot, skipped: true, reason: `MC/DOT #${targetInput} Operating Authority Not Authorized for Hire` };
+  }
+
+  // Strict Filter 4: Carrier MUST NOT be Out of Service (OOS)
+  if (oosStatus && (oosStatus.includes('YES') || oosStatus.includes('OUT OF SERVICE') || oosStatus.includes('OOS'))) {
+    return { target: targetInput, usdot, skipped: true, reason: `MC/DOT #${targetInput} Carrier Out of Service (OOS)` };
   }
 
   if (!legalName) {
@@ -218,7 +231,7 @@ async function parseSaferCarrier(targetInput) {
   let cleanQuery = rawInput.replace(/^(MC|MX|FF)[\-\s]*/i, '').replace(/\D/g, '');
   if (!cleanQuery) return { target: rawInput, skipped: true, reason: 'Invalid MC/USDOT Number' };
 
-  // 1. Check Real Verified Census Dataset First (Fast Path)
+  // 1. Check Real Verified Local Census Dataset First (Fast Path)
   if (VERIFIED_CARRIERS_MAP.has(cleanQuery)) {
     const cached = VERIFIED_CARRIERS_MAP.get(cleanQuery);
     return {
