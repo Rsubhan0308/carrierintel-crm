@@ -502,6 +502,33 @@ async function addSystemAudioStream() {
 }
 window.addSystemAudioStream = addSystemAudioStream;
 
+async function populateAudioDevices() {
+  const selectElem = document.getElementById('audio-device-select');
+  if (!selectElem) return;
+  
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const audioInputs = devices.filter(d => d.kind === 'audioinput');
+    const savedDeviceId = localStorage.getItem('preferredAudioDeviceId') || 'default';
+
+    selectElem.innerHTML = '<option value="default">🔊 Auto-Detect Microphone & Speaker Loopback</option>';
+    audioInputs.forEach((device, idx) => {
+      const option = document.createElement('option');
+      option.value = device.deviceId;
+      option.text = device.label || `Audio Input Source ${idx + 1}`;
+      if (device.deviceId === savedDeviceId) option.selected = true;
+      selectElem.appendChild(option);
+    });
+
+    selectElem.onchange = () => {
+      localStorage.setItem('preferredAudioDeviceId', selectElem.value);
+      showToast('Audio recording input device updated!', 'info');
+    };
+  } catch (e) {
+    console.log('Error enumerating audio devices:', e);
+  }
+}
+
 async function startMandatoryCallRecorder(carrierId, phoneNum) {
   let carrier = state.carriers.find(c => c.id === carrierId) || state.freshCarriers.find(c => c.id === carrierId);
   if (!carrier && state.activeCarrier && state.activeCarrier.id === carrierId) {
@@ -518,7 +545,9 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
   document.getElementById('rec-timer-display').innerText = '00:00';
   document.getElementById('floating-carrier-name').innerText = carrier.companyName;
   document.getElementById('floating-timer-display').innerText = '00:00';
-  document.getElementById('recorder-note-input').value = '';
+
+  // Populate input devices in dropdown
+  populateAudioDevices();
 
   // Trigger Phone / VoIP Launch
   const cleanPhone = (phoneNum || carrier.phone || '').replace(/\D/g, '');
@@ -527,16 +556,18 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
   }
 
   try {
-    let recorderStream;
+    const savedDeviceId = localStorage.getItem('preferredAudioDeviceId');
+    const audioConstraints = {
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: true
+    };
+    if (savedDeviceId && savedDeviceId !== 'default') {
+      audioConstraints.deviceId = { exact: savedDeviceId };
+    }
 
-            // 1. Capture Microphone Stream with High Sensitivity
-    const micStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: true
-      }
-    });
+    // 1. Capture Microphone & Speaker Loopback Audio Stream
+    const micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
     state.micStream = micStream;
 
     // 2. Setup Web Audio API AudioContext with Gain Boost & Dynamics Compressor
@@ -547,7 +578,7 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
 
     const micSourceNode = audioCtx.createMediaStreamSource(micStream);
     const gainNode = audioCtx.createGain();
-    gainNode.gain.value = 2.0;
+    gainNode.gain.value = 2.5; // High sensitivity for both mic and quiet incoming voice
 
     const compressorNode = audioCtx.createDynamicsCompressor();
     compressorNode.threshold.value = -35;
@@ -560,21 +591,24 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
     gainNode.connect(compressorNode);
     compressorNode.connect(destNode);
 
-    // Auto-connect any active web page / WebRTC audio elements automatically
-    document.querySelectorAll('audio, video').forEach(mediaElem => {
-      try {
-        if (mediaElem.srcObject || mediaElem.src) {
-          const stream = mediaElem.srcObject || (mediaElem.captureStream ? mediaElem.captureStream() : null);
-          if (stream && stream.getAudioTracks().length > 0) {
-            const sourceNode = audioCtx.createMediaStreamSource(stream);
-            sourceNode.connect(destNode);
-            console.log('Connected page audio element to recorder destination node');
+    // Continuous audio element interceptor to auto-connect browser softphone audio
+    const hookPageAudio = () => {
+      document.querySelectorAll('audio, video').forEach(mediaElem => {
+        try {
+          if (!mediaElem.__hooked && (mediaElem.srcObject || mediaElem.src)) {
+            const stream = mediaElem.srcObject || (mediaElem.captureStream ? mediaElem.captureStream() : null);
+            if (stream && stream.getAudioTracks().length > 0) {
+              const sourceNode = audioCtx.createMediaStreamSource(stream);
+              sourceNode.connect(destNode);
+              mediaElem.__hooked = true;
+              console.log('Successfully hooked recipient softphone audio stream into call recorder!');
+            }
           }
-        }
-      } catch (e) {
-        console.log('Could not connect media element:', e);
-      }
-    });
+        } catch (e) {}
+      });
+    };
+    hookPageAudio();
+    state.audioHookInterval = setInterval(hookPageAudio, 1000);
 
     state.mediaRecorder = new MediaRecorder(destNode.stream);
     state.mediaRecorder.ondataavailable = (event) => {
@@ -583,7 +617,7 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
 
     state.mediaRecorder.start(1000);
 
-    // Start Timer Display (Syncs Both Main Modal and Floating Bar)
+    // Start Timer Display
     if (state.recordingTimer) clearInterval(state.recordingTimer);
     state.recordingTimer = setInterval(() => {
       state.recordingSeconds++;
@@ -596,14 +630,7 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
 
     document.getElementById('call-recorder-modal').classList.add('active');
     document.getElementById('floating-call-bar').style.display = 'none';
-    showToast('🎙️ 2-Way Both-Sides Call Recording Active!', 'success');
-
-    // Auto-prompt system/softphone recipient audio stream immediately
-    setTimeout(() => {
-      if (typeof addSystemAudioStream === 'function') {
-        addSystemAudioStream();
-      }
-    }, 400);
+    showToast('🎙️ 2-Way Call Audio Recording Started Automatically!', 'success');
 
   } catch (err) {
     console.error('Microphone access error:', err);
@@ -671,6 +698,7 @@ async function stopAndSaveCallRecording() {
       state.displayStream.getTracks().forEach(track => track.stop());
       state.displayStream = null;
     }
+    if (state.audioHookInterval) clearInterval(state.audioHookInterval);
     if (state.recordingAudioCtx) {
       state.recordingAudioCtx.close();
       state.recordingAudioCtx = null;

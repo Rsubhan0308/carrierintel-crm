@@ -876,6 +876,14 @@
       </div>
 
       <div class="modal-body" style="padding: 24px; text-align: center;">
+        <div style="margin-bottom: 14px; text-align: left;">
+          <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">
+            <i class="fa-solid fa-microphone"></i> Audio Capture Source (Microphone / Headset / Stereo Mix):
+          </label>
+          <select id="audio-device-select" style="width: 100%; padding: 8px 12px; border-radius: 8px; background: var(--bg-sidebar); border: 1px solid var(--border-color); color: var(--text-main); font-size: 0.8rem;">
+            <option value="default">🔊 Default System Mic (Auto Both-Sides Capture)</option>
+          </select>
+        </div>
         <div class="recording-pulse-box">
           <div class="rec-dot"></div>
           <div class="rec-timer" id="rec-timer-display">00:00</div>
