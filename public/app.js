@@ -469,12 +469,12 @@ async function addSystemAudioStream() {
   try {
     const displayStream = await navigator.mediaDevices.getDisplayMedia({
       video: true,
-      audio: { echoCancellation: false, autoGainControl: false }
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, suppressLocalAudioPlayback: false }
     });
 
     const sysAudioTracks = displayStream.getAudioTracks();
     if (sysAudioTracks.length === 0) {
-      showToast('⚠️ No audio track selected. Make sure to check "Share Audio" in the browser prompt!', 'warning');
+      showToast('⚠️ No recipient audio track selected. Make sure to check "Share Audio" in the browser popup!', 'warning');
       return;
     }
 
@@ -484,9 +484,20 @@ async function addSystemAudioStream() {
       const sysSourceNode = state.recordingAudioCtx.createMediaStreamSource(new MediaStream([sysAudioTracks[0]]));
       sysSourceNode.connect(state.recordingDestNode);
     }
-    showToast('✅ Softphone / Recipient audio stream linked successfully!', 'success');
+
+    const subText = document.querySelector('.rec-sub');
+    if (subText) {
+      subText.innerHTML = '<i class="fa-solid fa-headset"></i> <span style="color:#10b981; font-weight:bold;">🟢 2-Way Both-Sides Active (Mic + Recipient Headphone Audio Linked)</span>';
+    }
+
+    const recStatusNotice = document.getElementById('rec-status-notice');
+    if (recStatusNotice) {
+      recStatusNotice.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#10b981;"></i> Recipient headphone voice stream digitally connected!';
+    }
+
+    showToast('✅ Recipient & Softphone audio stream linked successfully!', 'success');
   } catch (err) {
-    console.log('System audio capture cancelled:', err);
+    console.log('System audio capture cancelled or skipped:', err);
   }
 }
 window.addSystemAudioStream = addSystemAudioStream;
@@ -518,7 +529,7 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
   try {
     let recorderStream;
 
-    // 1. Capture Microphone Stream without echo cancellation so speaker sound is captured
+        // 1. Capture Microphone Stream
     const micStream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: false,
@@ -528,7 +539,7 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
     });
     state.micStream = micStream;
 
-    // 2. Setup Web Audio API AudioContext for multi-source mixing
+    // 2. Setup Web Audio API AudioContext for multi-source mixing (Mic + Recipient Output)
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const destNode = audioCtx.createMediaStreamDestination();
     state.recordingAudioCtx = audioCtx;
@@ -536,6 +547,22 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
 
     const micSourceNode = audioCtx.createMediaStreamSource(micStream);
     micSourceNode.connect(destNode);
+
+    // Auto-connect any active web page / WebRTC audio elements automatically
+    document.querySelectorAll('audio, video').forEach(mediaElem => {
+      try {
+        if (mediaElem.srcObject || mediaElem.src) {
+          const stream = mediaElem.srcObject || (mediaElem.captureStream ? mediaElem.captureStream() : null);
+          if (stream && stream.getAudioTracks().length > 0) {
+            const sourceNode = audioCtx.createMediaStreamSource(stream);
+            sourceNode.connect(destNode);
+            console.log('Connected page audio element to recorder destination node');
+          }
+        }
+      } catch (e) {
+        console.log('Could not connect media element:', e);
+      }
+    });
 
     state.mediaRecorder = new MediaRecorder(destNode.stream);
     state.mediaRecorder.ondataavailable = (event) => {
