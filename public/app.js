@@ -686,7 +686,6 @@ async function stopAndSaveCallRecording() {
       audioPreviewElem.src = URL.createObjectURL(audioBlob);
       audioContainer.style.display = 'block';
     }
-    const audioBlob = new Blob(state.audioChunks, { type: 'audio/webm' });
 
     // Convert Audio Blob to Base64 string
     const reader = new FileReader();
