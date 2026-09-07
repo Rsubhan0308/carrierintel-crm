@@ -529,7 +529,7 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
   try {
     let recorderStream;
 
-        // 1. Capture Microphone Stream
+            // 1. Capture Microphone Stream with High Sensitivity
     const micStream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: false,
@@ -539,14 +539,26 @@ async function startMandatoryCallRecorder(carrierId, phoneNum) {
     });
     state.micStream = micStream;
 
-    // 2. Setup Web Audio API AudioContext for multi-source mixing (Mic + Recipient Output)
+    // 2. Setup Web Audio API AudioContext with Gain Boost & Dynamics Compressor
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const destNode = audioCtx.createMediaStreamDestination();
     state.recordingAudioCtx = audioCtx;
     state.recordingDestNode = destNode;
 
     const micSourceNode = audioCtx.createMediaStreamSource(micStream);
-    micSourceNode.connect(destNode);
+    const gainNode = audioCtx.createGain();
+    gainNode.gain.value = 2.0;
+
+    const compressorNode = audioCtx.createDynamicsCompressor();
+    compressorNode.threshold.value = -35;
+    compressorNode.knee.value = 10;
+    compressorNode.ratio.value = 12;
+    compressorNode.attack.value = 0.003;
+    compressorNode.release.value = 0.25;
+
+    micSourceNode.connect(gainNode);
+    gainNode.connect(compressorNode);
+    compressorNode.connect(destNode);
 
     // Auto-connect any active web page / WebRTC audio elements automatically
     document.querySelectorAll('audio, video').forEach(mediaElem => {
