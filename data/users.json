@@ -1,0 +1,42 @@
+[
+  {
+    "id": "USER-ADMIN",
+    "name": "System Admin",
+    "email": "admin@carrierintel.com",
+    "password": "admin123",
+    "role": "ADMIN",
+    "createdAt": "2026-09-04T13:14:19.924Z"
+  },
+  {
+    "id": "USER-ALEX",
+    "name": "Alex Johnson",
+    "email": "alex@carrierintel.com",
+    "password": "alex123",
+    "role": "SALES_REP",
+    "createdAt": "2026-09-04T13:14:19.925Z"
+  },
+  {
+    "id": "USER-SARAH",
+    "name": "Sarah Davis",
+    "email": "sarah@carrierintel.com",
+    "password": "sarah123",
+    "role": "SALES_REP",
+    "createdAt": "2026-09-04T13:14:19.925Z"
+  },
+  {
+    "id": "USER-MICHAEL",
+    "name": "Michael Miller",
+    "email": "michael@carrierintel.com",
+    "password": "michael123",
+    "role": "SALES_REP",
+    "createdAt": "2026-09-04T13:14:19.925Z"
+  },
+  {
+    "id": "USER-DAVID",
+    "name": "David Wilson",
+    "email": "david@carrierintel.com",
+    "password": "david123",
+    "role": "SALES_REP",
+    "createdAt": "2026-09-04T13:14:19.925Z"
+  }
+]
