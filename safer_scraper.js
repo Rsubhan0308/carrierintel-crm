@@ -33,50 +33,88 @@ loadCensusDataset();
 // Native Proxy CONNECT SAFER Live Fetcher for ANY arbitrary MC or USDOT Number
 function fetchSaferHtmlViaProxy(queryParam, queryStr) {
   return new Promise((resolve) => {
-    const req = http.request({
-      host: PROXY_HOST,
-      port: PROXY_PORT,
-      method: 'CONNECT',
-      path: 'safer.fmcsa.dot.gov:443',
-      headers: { 'Proxy-Authorization': PROXY_AUTH }
-    });
-
-    req.setTimeout(12000, () => {
-      req.destroy();
-      resolve({ error: 'Proxy Connection Timeout' });
-    });
-
-    req.on('connect', (res, socket) => {
-      if (res.statusCode !== 200) {
-        return resolve({ error: `Proxy Connect Error ${res.statusCode}` });
+    let resolved = false;
+    const safeResolve = (val) => {
+      if (!resolved) {
+        resolved = true;
+        resolve(val);
       }
+    };
 
-      const pathStr = '/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=' + queryParam + '&query_string=' + queryStr;
+    // Hard 5-second max timeout safeguard
+    const globalTimer = setTimeout(() => {
+      safeResolve({ error: 'Hard Proxy Timeout (5s)' });
+    }, 5000);
 
-      const clientReq = https.request({
-        host: 'safer.fmcsa.dot.gov',
-        path: pathStr,
-        method: 'GET',
-        socket: socket,
-        agent: false,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Connection': 'keep-alive'
-        }
-      }, (saferRes) => {
-        let body = '';
-        saferRes.on('data', chunk => body += chunk);
-        saferRes.on('end', () => resolve({ status: saferRes.statusCode, body }));
+    try {
+      const req = http.request({
+        host: PROXY_HOST,
+        port: PROXY_PORT,
+        method: 'CONNECT',
+        path: 'safer.fmcsa.dot.gov:443',
+        headers: { 'Proxy-Authorization': PROXY_AUTH }
       });
 
-      clientReq.on('error', err => resolve({ error: err.message }));
-      clientReq.end();
-    });
+      req.setTimeout(3500, () => {
+        req.destroy();
+        clearTimeout(globalTimer);
+        safeResolve({ error: 'Proxy Connect Socket Timeout' });
+      });
 
-    req.on('error', err => resolve({ error: err.message }));
-    req.end();
+      req.on('connect', (res, socket) => {
+        if (res.statusCode !== 200) {
+          clearTimeout(globalTimer);
+          return safeResolve({ error: `Proxy Connect Error ${res.statusCode}` });
+        }
+
+        const pathStr = '/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=' + queryParam + '&query_string=' + queryStr;
+
+        const clientReq = https.request({
+          host: 'safer.fmcsa.dot.gov',
+          path: pathStr,
+          method: 'GET',
+          socket: socket,
+          agent: false,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Connection': 'close'
+          }
+        }, (saferRes) => {
+          let body = '';
+          saferRes.on('data', chunk => body += chunk);
+          saferRes.on('end', () => {
+            clearTimeout(globalTimer);
+            safeResolve({ status: saferRes.statusCode, body });
+          });
+        });
+
+        clientReq.setTimeout(3500, () => {
+          clientReq.destroy();
+          socket.destroy();
+          clearTimeout(globalTimer);
+          safeResolve({ error: 'SAFER Inner HTTPS Socket Timeout' });
+        });
+
+        clientReq.on('error', err => {
+          clearTimeout(globalTimer);
+          safeResolve({ error: err.message });
+        });
+
+        clientReq.end();
+      });
+
+      req.on('error', err => {
+        clearTimeout(globalTimer);
+        safeResolve({ error: err.message });
+      });
+
+      req.end();
+    } catch (e) {
+      clearTimeout(globalTimer);
+      safeResolve({ error: e.message });
+    }
   });
 }
 

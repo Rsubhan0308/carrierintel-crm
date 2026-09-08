@@ -82,30 +82,39 @@ function getInitialUsers() {
 
 function loadUsersDatabase() {
   const defaults = getInitialUsers();
-  if (fs.existsSync(USERS_FILE)) {
+  const mergedMap = new Map();
+  defaults.forEach(u => mergedMap.set(u.email.toLowerCase(), u));
+
+  const loadFrom = (p) => {
     try {
-      const existing = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
-      const merged = Array.isArray(existing) ? [...existing] : [];
-      // Ensure default admin & rep accounts are present without overwriting custom created users
-      defaults.forEach(defUser => {
-        if (!merged.some(u => u.email && u.email.toLowerCase() === defUser.email.toLowerCase())) {
-          merged.push(defUser);
-        }
-      });
-      usersDatabase = merged;
-      saveUsersDatabase();
-    } catch (e) {
-      usersDatabase = defaults;
-      saveUsersDatabase();
-    }
-  } else {
-    usersDatabase = defaults;
-    saveUsersDatabase();
-  }
+      if (fs.existsSync(p)) {
+        const raw = fs.readFileSync(p, 'utf8');
+        const list = JSON.parse(raw);
+        if (Array.isArray(list)) list.forEach(u => { if (u && u.email) mergedMap.set(u.email.toLowerCase(), u); });
+      }
+    } catch (e) {}
+  };
+
+  loadFrom(USERS_FILE);
+  loadFrom(path.join(__dirname, 'data', 'users.json'));
+  loadFrom(path.join(__dirname, 'public', 'users_backup.json'));
+
+  usersDatabase = Array.from(mergedMap.values());
+  console.log(`📦 Loaded & restored ${usersDatabase.length} persistent user accounts from multi-location backups.`);
+  saveUsersDatabase();
 }
 
 function saveUsersDatabase() {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(usersDatabase, null, 2), 'utf8');
+  try {
+    const jsonStr = JSON.stringify(usersDatabase, null, 2);
+    fs.writeFileSync(USERS_FILE, jsonStr, 'utf8');
+    if (!fs.existsSync(path.join(__dirname, 'data'))) fs.mkdirSync(path.join(__dirname, 'data'), { recursive: true });
+    fs.writeFileSync(path.join(__dirname, 'data', 'users.json'), jsonStr, 'utf8');
+    if (!fs.existsSync(path.join(__dirname, 'public'))) fs.mkdirSync(path.join(__dirname, 'public'), { recursive: true });
+    fs.writeFileSync(path.join(__dirname, 'public', 'users_backup.json'), jsonStr, 'utf8');
+  } catch (e) {
+    console.error('⚠️ Error saving users database:', e);
+  }
 }
 
 loadUsersDatabase();
@@ -114,25 +123,51 @@ loadUsersDatabase();
 let carriersDatabase = [];
 
 function loadDatabase() {
-  if (fs.existsSync(DB_FILE)) {
+  const mergedMap = new Map();
+
+  const loadFrom = (p) => {
     try {
-      const data = fs.readFileSync(DB_FILE, 'utf8');
-      carriersDatabase = JSON.parse(data);
-      console.log(`[DB] Successfully loaded ${carriersDatabase.length} carrier records from ${DB_FILE}`);
-    } catch (e) {
-      console.error('[DB] Failed to parse JSON, starting empty database...', e);
-      carriersDatabase = [];
-      saveDatabase();
-    }
+      if (fs.existsSync(p)) {
+        const raw = fs.readFileSync(p, 'utf8');
+        const list = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          list.forEach(item => {
+            if (!item) return;
+            const key = String(item.usdot || item.dotNumber || item.mcNumber || item.id);
+            if (key && !mergedMap.has(key)) {
+              mergedMap.set(key, item);
+            }
+          });
+        }
+      }
+    } catch (e) {}
+  };
+
+  loadFrom(DB_FILE);
+  loadFrom(path.join(__dirname, 'data', 'leads.json'));
+  loadFrom(path.join(__dirname, 'public', 'leads_backup.json'));
+
+  if (mergedMap.size > 0) {
+    carriersDatabase = Array.from(mergedMap.values());
+    console.log(`📦 Loaded & restored ${carriersDatabase.length} persistent carrier records from multi-location disk backups!`);
   } else {
-    console.log('[DB] No database found. Starting empty database...');
-    carriersDatabase = [];
-    saveDatabase();
+    carriersDatabase = getInitialCarriers();
+    console.log(`📦 Initialized ${carriersDatabase.length} seed carriers.`);
   }
+  saveDatabase();
 }
 
 function saveDatabase() {
-  fs.writeFileSync(DB_FILE, JSON.stringify(carriersDatabase, null, 2), 'utf8');
+  try {
+    const jsonStr = JSON.stringify(carriersDatabase, null, 2);
+    fs.writeFileSync(DB_FILE, jsonStr, 'utf8');
+    if (!fs.existsSync(path.join(__dirname, 'data'))) fs.mkdirSync(path.join(__dirname, 'data'), { recursive: true });
+    fs.writeFileSync(path.join(__dirname, 'data', 'leads.json'), jsonStr, 'utf8');
+    if (!fs.existsSync(path.join(__dirname, 'public'))) fs.mkdirSync(path.join(__dirname, 'public'), { recursive: true });
+    fs.writeFileSync(path.join(__dirname, 'public', 'leads_backup.json'), jsonStr, 'utf8');
+  } catch (e) {
+    console.error('⚠️ Error saving carriers database:', e);
+  }
 }
 
 loadDatabase();
@@ -878,6 +913,7 @@ app.post('/api/scraper/start', (req, res) => {
                 carriersDatabase[existingIdx] = item;
               } else {
                 carriersDatabase.unshift(item);
+              saveDatabase();
               }
               activeScrapeJobs[jobId].logs.push(`[SUCCESS] Extracted ${item.companyName} (${item.mcNumber || tagLabel}, USDOT #${item.usdot}, ${item.state}, ${item.phone})`);
             }
