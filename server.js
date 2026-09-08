@@ -911,6 +911,7 @@ app.post('/api/scraper/start', (req, res) => {
               activeScrapeJobs[jobId].scrapedCount++;
               if (existingIdx !== -1) {
                 carriersDatabase[existingIdx] = item;
+              saveDatabase();
               } else {
                 carriersDatabase.unshift(item);
               saveDatabase();
